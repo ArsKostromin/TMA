@@ -1,72 +1,58 @@
 import hmac
 import hashlib
-import json
+import urllib.parse
 import requests
-from urllib.parse import parse_qsl, unquote
+import jwt
+from datetime import datetime, timedelta
 from django.conf import settings
 
 
-BOT_TOKEN = settings.BOT_TOKEN  
-
 def validate_init_data(init_data: str) -> dict:
     """
-    Валидирует initData от Telegram WebApp.
-    Возвращает dict с данными пользователя или кидает ValueError.
+    Валидирует initData от Telegram WebApp через HMAC-SHA256.
+    Возвращает dict с данными пользователя, если всё ок.
     """
-    # Разбираем строку
-    parsed_data = dict(parse_qsl(init_data, keep_blank_values=True))
-    auth_hash = parsed_data.pop("hash", None)
-    if not auth_hash:
-        raise ValueError("Нет hash в initData")
+    parsed = dict(urllib.parse.parse_qsl(init_data))
+    check_hash = parsed.pop("hash", None)
 
-    # Сортируем по ключу
-    data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(parsed_data.items()))
+    # Собираем строку
+    data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(parsed.items()))
 
-    # Формируем секретный ключ
-    secret_key = hmac.new(
-        key=b"WebAppData",
-        msg=BOT_TOKEN.encode(),
-        digestmod=hashlib.sha256
-    ).digest()
+    # Ключ для HMAC
+    secret_key = hashlib.sha256(settings.BOT_TOKEN.encode()).digest()
+    hmac_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
-    # Считаем свой HMAC
-    calculated_hash = hmac.new(
-        key=secret_key,
-        msg=data_check_string.encode(),
-        digestmod=hashlib.sha256
-    ).hexdigest()
+    if hmac_hash != check_hash:
+        raise ValueError("Invalid initData")
 
-    if calculated_hash != auth_hash:
-        raise ValueError("HMAC не совпадает — initData подделан")
-
-    # Приводим данные user к dict
-    if "user" in parsed_data:
-        parsed_data["user"] = json.loads(parsed_data["user"])
-
-    return parsed_data
+    return parsed
 
 
-def get_user_avatar(user_id: int) -> str | None:
+def get_user_avatar(telegram_id: int) -> str | None:
     """
-    Запрашивает аватарку пользователя через Bot API.
-    Возвращает полный URL или None.
+    Получает URL аватарки пользователя через Telegram Bot API.
     """
-    r = requests.get(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/getUserProfilePhotos",
-        params={"user_id": user_id, "limit": 1}
-    ).json()
-
-    if not r.get("ok") or not r["result"]["photos"]:
+    url = f"https://api.telegram.org/bot{settings.BOT_TOKEN}/getUserProfilePhotos"
+    r = requests.get(url, params={"user_id": telegram_id, "limit": 1})
+    data = r.json()
+    if not data.get("ok") or not data["result"]["total_count"]:
         return None
-
-    file_id = r["result"]["photos"][0][-1]["file_id"]
-    fr = requests.get(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/getFile",
+    file_id = data["result"]["photos"][0][-1]["file_id"]
+    file_path = requests.get(
+        f"https://api.telegram.org/bot{settings.BOT_TOKEN}/getFile",
         params={"file_id": file_id}
-    ).json()
+    ).json()["result"]["file_path"]
+    return f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{file_path}"
 
-    if not fr.get("ok"):
-        return None
 
-    file_path = fr["result"]["file_path"]
-    return f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
+def generate_jwt(user_id: int) -> str:
+    """
+    Генерирует JWT-токен для пользователя.
+    """
+    payload = {
+        "user_id": user_id,
+        "exp": datetime.utcnow() + timedelta(days=30),  # токен живёт 30 дней
+        "iat": datetime.utcnow()
+    }
+    token = jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
+    return token
