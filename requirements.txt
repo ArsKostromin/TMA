@@ -13,3 +13,5 @@ django-celery-beat>=2.5.0
 whitenoise
 Pillow
 # django-jazzmin
+pyjwt
+python-dotenv

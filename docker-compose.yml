@@ -1,10 +1,8 @@
-version: '3.9'
-
 services:
   web:
     build:
       context: .
-    container_name: vpn-backend
+    container_name: SG-backend
     command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - .:/app
@@ -15,12 +13,12 @@ services:
     depends_on:
       - redis
     networks:
-      - vpn-network
+      - SG-network
 
   celery:
     build:
       context: .
-    container_name: vpn-celery
+    container_name: SG-celery
     command: celery -A config worker --loglevel=info
     volumes:
       - .:/app
@@ -30,15 +28,31 @@ services:
       - web
       - redis
     networks:
-      - vpn-network
+      - SG-network
 
   redis:
     image: redis:7
-    container_name: vpn-redis
+    container_name: SG-redis
     ports:
       - "6379:6379"
     networks:
-      - vpn-network
+      - SG-network
+
+
+  postgres:
+    image: postgres:14
+    container_name: SG-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - SG-network
 
 networks:
-  vpn-network:
+  SG-network:
