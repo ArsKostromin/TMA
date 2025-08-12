@@ -1,58 +1,59 @@
+import jwt
+from datetime import datetime, timedelta
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
-from django.contrib.auth import get_user_model
-from django.conf import settings
-
-from utils.telegram_auth import validate_init_data, get_user_avatar, generate_jwt
+from .utils.telegram_auth import validate_init_data, get_user_avatar, parse_init_data_no_check
 
 User = get_user_model()
 
 
 class TelegramAuthView(APIView):
-    """
-    Принимает initData от Telegram WebApp, валидирует, создаёт/обновляет пользователя,
-    возвращает JWT-токен и базовую инфу.
-    """
-
     def post(self, request):
         init_data = request.data.get("initData")
         if not init_data:
-            return Response({"error": "initData is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "initData is required"}, status=400)
 
         try:
-            parsed = validate_init_data(init_data)
-        except ValueError:
-            return Response({"error": "Invalid initData"}, status=status.HTTP_403_FORBIDDEN)
+            # data = validate_init_data(init_data) 
+            data = parse_init_data_no_check(init_data) #на проде убрать 
+        except ValueError as e:
+            return Response({"error": str(e)}, status=403)
 
-        telegram_id = int(parsed.get("id"))
-        username = parsed.get("username")
-        first_name = parsed.get("first_name")
-        last_name = parsed.get("last_name")
+        tg_user = data["user"]
+        avatar_url = get_user_avatar(tg_user["id"])
 
-        user, created = User.objects.get_or_create(telegram_id=telegram_id, defaults={
-            "username": username,
-            "first_name": first_name,
-            "last_name": last_name,
-        })
+        user, created = User.objects.get_or_create(
+            telegram_id=tg_user["id"],
+            defaults={
+                "username": tg_user.get("username", ""),
+                "avatar_url": avatar_url
+            }
+        )
 
-        # Обновляем данные
-        user.username = username
-        user.first_name = first_name
-        user.last_name = last_name
-        user.avatar_url = get_user_avatar(telegram_id)
-        user.save()
+        # 🔄 Если пользователь уже существовал — обновим данные
+        if not created:
+            updated = False
+            if user.username != tg_user.get("username", ""):
+                user.username = tg_user.get("username", "")
+                updated = True
+            if user.avatar_url != avatar_url:
+                user.avatar_url = avatar_url
+                updated = True
 
-        token = generate_jwt(user.id)
+            if updated:
+                user.save()
+
+        payload = {
+            "user_id": user.id,
+            "exp": datetime.utcnow() + settings.JWT_EXP_DELTA
+        }
+        token = jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
         return Response({
-            "token": token,
-            "user": {
-                "id": user.id,
-                "telegram_id": user.telegram_id,
-                "username": user.username,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "avatar_url": user.avatar_url,
-            }
+            "id": user.id,
+            "username": user.username,
+            "avatar_url": user.avatar_url,
+            "token": token
         })

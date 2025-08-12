@@ -118,6 +118,7 @@ USE_I18N = True
 
 USE_TZ = True
 
+AUTH_USER_MODEL = "user.User"
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
@@ -140,6 +141,8 @@ JWT_ALGORITHM = "HS256"
 JWT_EXP_DELTA = timedelta(days=7)
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
-    "DEFAULT_PERMISSION_CLASSES": [],
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.BasicAuthentication",  # уберёшь если не нужно
+        "rest_framework.authentication.SessionAuthentication",  # уберёшь если не нужно
+    )
 }
