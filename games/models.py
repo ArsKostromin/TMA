@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from decimal import Decimal
+from user.models import User
 
 
 class Game(models.Model):
@@ -70,7 +71,7 @@ class SpinGame(models.Model):
     bet_stars = models.PositiveIntegerField(default=0, verbose_name="Ставка в Stars")
     result_sector = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Выигрышный сектор")
 
-    player = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Игрок")
+    player = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Игрок")
     gift_won = models.ForeignKey("gifts.Gift", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="Выигранный подарок")
 
     played_at = models.DateTimeField(auto_now_add=True)

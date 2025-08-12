@@ -39,8 +39,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     "rest_framework",
+    'channels',
 
     'user',
+    'games',
+    'core',
+    'gifts',
+    'transactions',
 ]
 
 MIDDLEWARE = [
@@ -145,4 +150,17 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.BasicAuthentication",  # уберёшь если не нужно
         "rest_framework.authentication.SessionAuthentication",  # уберёшь если не нужно
     )
+}
+
+
+#django channels
+ASGI_APPLICATION = "config.asgi.application"  
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)],  # имя контейнера Redis в docker-compose
+        },
+    },
 }

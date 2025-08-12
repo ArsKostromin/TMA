@@ -47,7 +47,7 @@ class TelegramAuthView(APIView):
 
         payload = {
             "user_id": user.id,
-            "exp": datetime.utcnow() + settings.JWT_EXP_DELTA
+            "exp": int((datetime.utcnow() + settings.JWT_EXP_DELTA).timestamp())
         }
         token = jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 

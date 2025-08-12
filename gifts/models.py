@@ -51,4 +51,3 @@ class Inventory(models.Model):
 
     def __str__(self):
         return f"{self.user} — {self.gift} x{self.quantity}"
-ы

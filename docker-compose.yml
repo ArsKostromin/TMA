@@ -3,7 +3,8 @@ services:
     build:
       context: .
     container_name: SG-backend
-    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+    command: uvicorn config.asgi:application --host 0.0.0.0 --port 8000 --log-level debug
+
     volumes:
       - .:/app
     ports:
@@ -15,22 +16,24 @@ services:
       - postgres
     networks:
       - SG-network
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
 
-  celery:
-    build:
-      context: .
-    container_name: SG-celery
-    command: celery -A config worker --loglevel=info
-    volumes:
-      - .:/app
-    env_file:
-      - .env
-    depends_on:
-      - web
-      - redis
-      - postgres
-    networks:
-      - SG-network
+  # celery:
+  #   build:
+  #     context: .
+  #   container_name: SG-celery
+  #   command: celery -A config worker --loglevel=info
+  #   volumes:
+  #     - .:/app
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - web
+  #     - redis
+  #     - postgres
+  #   networks:
+  #     - SG-network
 
   redis:
     image: redis:7
