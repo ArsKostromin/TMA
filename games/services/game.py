@@ -92,8 +92,9 @@ class GameService:
 
     @staticmethod
     def add_player_to_game(game_id, user):
-        from game.tasks import finish_game_task
-
+        from games.tasks import finish_game_task
+        from games.models import Game, GamePlayer
+        
         GamePlayer.objects.get_or_create(game_id=game_id, user=user)
 
         count = GamePlayer.objects.filter(game_id=game_id).count()
