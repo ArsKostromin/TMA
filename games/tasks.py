@@ -1,6 +1,6 @@
 # tasks.py
 from celery import shared_task
-from game.models import Game
+from .models import Game
 
 @shared_task
 def finish_game_task(game_id):

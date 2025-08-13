@@ -2,7 +2,6 @@ import redis
 from decimal import Decimal
 from django.db import transaction
 from asgiref.sync import sync_to_async
-from .tasks import finish_game_task
 
 class GameService:
     @staticmethod
@@ -93,6 +92,8 @@ class GameService:
 
     @staticmethod
     def add_player_to_game(game_id, user):
+        from game.tasks import finish_game_task
+
         GamePlayer.objects.get_or_create(game_id=game_id, user=user)
 
         count = GamePlayer.objects.filter(game_id=game_id).count()
