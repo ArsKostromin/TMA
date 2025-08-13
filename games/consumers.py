@@ -1,14 +1,15 @@
+# consumers.py
 import json
 import time
 from decimal import Decimal
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from .services.auth import AuthService
-from .services.game import GameService
+from .services.game_service import GameService
 
 
 class PvpGameConsumer(AsyncWebsocketConsumer):
-    RATE_LIMIT_SECONDS = 0.5  # минимальный интервал между командами
+    RATE_LIMIT_SECONDS = 0.5
 
     async def connect(self):
         from django.contrib.auth.models import AnonymousUser
@@ -17,7 +18,7 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
         self.authenticated = False
         self.game_id = None
         self.room_group_name = None
-        self.last_action_time = 0  # время последней команды
+        self.last_action_time = 0
 
     async def disconnect(self, close_code):
         if self.authenticated and self.room_group_name:
@@ -26,7 +27,6 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data):
         now = time.time()
         if now - self.last_action_time < self.RATE_LIMIT_SECONDS:
-            # Игнорируем спам
             await self.send(json.dumps({"error": "Too many requests"}))
             return
         self.last_action_time = now
@@ -40,8 +40,9 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
                 if not token:
                     await self.close()
                     return
+
                 user = await AuthService.get_user_from_token(token)
-                if user is None or not user.is_authenticated:
+                if not user or not user.is_authenticated:
                     await self.close()
                     return
 
@@ -49,16 +50,19 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
                 self.authenticated = True
 
                 game_id = await sync_to_async(GameService.find_user_game)(user)
-                if game_id:
-                    self.game_id = game_id
-                    self.room_group_name = f"pvp_{game_id}"
-                    await sync_to_async(GameService.ensure_player_in_game)(user, game_id)
-                else:
+                if not game_id:
                     game_id, room_group_name = await sync_to_async(GameService.get_or_create_game_and_player)(user)
-                    self.game_id = game_id
-                    self.room_group_name = room_group_name
+                else:
+                    room_group_name = f"pvp_{game_id}"
+                    await sync_to_async(GameService.ensure_player_in_game)(user, game_id)
 
+                self.game_id = game_id
+                self.room_group_name = room_group_name
                 await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+
+                # запуск таймера, если игроков ≥ 2
+                await sync_to_async(GameService.add_player_to_game)(self.game_id, user)
+
                 await self.send_game_state()
             else:
                 await self.close()

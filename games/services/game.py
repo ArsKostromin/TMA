@@ -1,6 +1,8 @@
+import redis
 from decimal import Decimal
 from django.db import transaction
-
+from asgiref.sync import sync_to_async
+from .tasks import finish_game_task
 
 class GameService:
     @staticmethod
@@ -87,4 +89,47 @@ class GameService:
             "status": game.status,
             "pot_amount_ton": str(game.pot_amount_ton),
             "players": players_data,
+        }
+
+    @staticmethod
+    def add_player_to_game(game_id, user):
+        GamePlayer.objects.get_or_create(game_id=game_id, user=user)
+
+        count = GamePlayer.objects.filter(game_id=game_id).count()
+
+        if count >= 2:
+            timer_key = f"game_timer:{game_id}"
+            if not r.exists(timer_key):
+                r.set(timer_key, "running", ex=40)
+                finish_game_task.apply_async(args=[game_id], countdown=40)
+
+    @staticmethod
+    def finish_game(game_id):
+        game = Game.objects.get(id=game_id)
+        players = list(GamePlayer.objects.filter(game_id=game_id))
+
+        if not players:
+            game.status = Game.Status.FINISHED
+            game.save(update_fields=["status"])
+            return {"status": "finished", "winner": None}
+
+        # Выбор победителя (рандом)
+        winner = random.choice(players)
+        game.status = Game.Status.FINISHED
+        game.save(update_fields=["status"])
+
+        return {
+            "status": "finished",
+            "winner": winner.user.username,
+            "pot": sum(p.bet_amount for p in players),
+            "players": [
+                {
+                    "username": p.user.username,
+                    "bet": float(p.bet_amount),
+                    "chance": round(
+                        (p.bet_amount / sum(x.bet_amount for x in players)) * 100, 2
+                    )
+                }
+                for p in players
+            ]
         }

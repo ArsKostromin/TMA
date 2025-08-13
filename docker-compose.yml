@@ -19,21 +19,21 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
 
-  # celery:
-  #   build:
-  #     context: .
-  #   container_name: SG-celery
-  #   command: celery -A config worker --loglevel=info
-  #   volumes:
-  #     - .:/app
-  #   env_file:
-  #     - .env
-  #   depends_on:
-  #     - web
-  #     - redis
-  #     - postgres
-  #   networks:
-  #     - SG-network
+  celery:
+    build:
+      context: .
+    container_name: SG-celery
+    command: celery -A config worker --loglevel=info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - web
+      - redis
+      - postgres
+    networks:
+      - SG-network
 
   redis:
     image: redis:7
