@@ -41,6 +41,19 @@ class GameService:
     @staticmethod
     def update_bet(user, amount, game_id):
         from games.models import GamePlayer
+
+        # Приводим amount к Decimal
+        amount = Decimal(amount)
+
+        # Проверка баланса
+        if user.balance_ton < amount:
+            raise ValidationError(_("Недостаточно средств на балансе TON"))
+
+        # Списываем деньги (можно atomic update)
+        user.balance_ton -= amount
+        user.save(update_fields=["balance_ton"])
+
+        # Обновляем ставку в игре
         GamePlayer.objects.filter(game_id=game_id, user=user).update(bet_ton=amount)
 
     @staticmethod

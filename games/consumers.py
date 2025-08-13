@@ -1,11 +1,15 @@
 import json
+import time
 from decimal import Decimal
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from .services.auth import AuthService
 from .services.game import GameService
 
+
 class PvpGameConsumer(AsyncWebsocketConsumer):
+    RATE_LIMIT_SECONDS = 0.5  # минимальный интервал между командами
+
     async def connect(self):
         from django.contrib.auth.models import AnonymousUser
         self.scope["user"] = AnonymousUser()
@@ -13,12 +17,20 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
         self.authenticated = False
         self.game_id = None
         self.room_group_name = None
+        self.last_action_time = 0  # время последней команды
 
     async def disconnect(self, close_code):
         if self.authenticated and self.room_group_name:
             await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     async def receive(self, text_data):
+        now = time.time()
+        if now - self.last_action_time < self.RATE_LIMIT_SECONDS:
+            # Игнорируем спам
+            await self.send(json.dumps({"error": "Too many requests"}))
+            return
+        self.last_action_time = now
+
         data = json.loads(text_data)
         action = data.get("action")
 
@@ -53,8 +65,12 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
             return
 
         if action == "bet":
+            user = await AuthService.get_authenticated_user(data.get("token"))
+            if not user:
+                await self.close()
+                return
+
             amount = Decimal(data.get("amount", "0"))
-            user = self.scope["user"]
             await sync_to_async(GameService.update_bet)(user, amount, self.game_id)
             await sync_to_async(GameService.calc_and_save_pot_chances)(self.game_id)
             await self.send_game_state()
