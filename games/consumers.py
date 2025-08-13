@@ -91,3 +91,6 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
 
     async def game_state(self, event):
         await self.send(text_data=json.dumps(event))
+
+    async def game_finished(self, event):
+        await self.send(text_data=json.dumps(event))

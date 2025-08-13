@@ -4,7 +4,7 @@ from .models import Game
 
 @shared_task
 def finish_game_task(game_id):
-    from .services.game_service import GameService
+    from .services.game import GameService
     from channels.layers import get_channel_layer
     from asgiref.sync import async_to_sync
 

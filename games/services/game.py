@@ -1,21 +1,38 @@
 import redis
+import random
 from decimal import Decimal
 from django.db import transaction
 from asgiref.sync import sync_to_async
+from django.conf import settings
+
+r = settings.REDIS_CLIENT
 
 class GameService:
     @staticmethod
     def find_user_game(user):
         from games.models import GamePlayer
-        gp = GamePlayer.objects.filter(user=user).first()
+        gp = (
+            GamePlayer.objects
+            .filter(user=user, game__status__in=["waiting", "running"])
+            .first()
+        )
         return gp.game.id if gp else None
 
     @staticmethod
     def ensure_player_in_game(user, game_id):
         from games.models import Game, GamePlayer
         game = Game.objects.get(id=game_id)
+
+        # Не добавляем игрока в завершённую игру
+        if game.status == "finished":
+            return
+
         if not GamePlayer.objects.filter(game=game, user=user).exists():
-            GamePlayer.objects.create(game=game, user=user, bet_ton=Decimal("0.00"))
+            GamePlayer.objects.create(
+                game=game,
+                user=user,
+                bet_ton=Decimal("0.00")
+            )
 
     @staticmethod
     def get_or_create_game_and_player(user):
@@ -93,8 +110,8 @@ class GameService:
     @staticmethod
     def add_player_to_game(game_id, user):
         from games.tasks import finish_game_task
-        from games.models import Game, GamePlayer
-        
+        from games.models import Game, GamePlayer, Game as GameModel
+
         GamePlayer.objects.get_or_create(game_id=game_id, user=user)
 
         count = GamePlayer.objects.filter(game_id=game_id).count()
@@ -103,10 +120,16 @@ class GameService:
             timer_key = f"game_timer:{game_id}"
             if not r.exists(timer_key):
                 r.set(timer_key, "running", ex=40)
+
+                # Обновляем статус игры на "running"
+                GameModel.objects.filter(id=game_id).update(status="running")
+
                 finish_game_task.apply_async(args=[game_id], countdown=40)
+
 
     @staticmethod
     def finish_game(game_id):
+        from games.models import Game, GamePlayer
         game = Game.objects.get(id=game_id)
         players = list(GamePlayer.objects.filter(game_id=game_id))
 
@@ -117,19 +140,19 @@ class GameService:
 
         # Выбор победителя (рандом)
         winner = random.choice(players)
-        game.status = Game.Status.FINISHED
+        game.status = "finished"  # соответствующее значение из status_choices
         game.save(update_fields=["status"])
 
         return {
             "status": "finished",
             "winner": winner.user.username,
-            "pot": sum(p.bet_amount for p in players),
+            "pot": float(sum(p.bet_ton for p in players)),
             "players": [
                 {
                     "username": p.user.username,
-                    "bet": float(p.bet_amount),
+                    "bet": float(p.bet_ton),
                     "chance": round(
-                        (p.bet_amount / sum(x.bet_amount for x in players)) * 100, 2
+                        (float(p.bet_ton) / float(sum(x.bet_ton for x in players))) * 100, 2
                     )
                 }
                 for p in players

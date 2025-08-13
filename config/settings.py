@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from datetime import timedelta
 from pathlib import Path
 import os
+import redis
+
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -154,16 +156,23 @@ REST_FRAMEWORK = {
 
 
 #django channels
-ASGI_APPLICATION = "config.asgi.application"  
+ASGI_APPLICATION = "config.asgi.application"
 
+REDIS_HOST = os.getenv("REDIS_HOST", "redis")  # 'redis' — имя контейнера в docker-compose
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+
+# Django Channels конфигурация
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("redis", 6379)],  # имя контейнера Redis в docker-compose
+            "hosts": [(REDIS_HOST, REDIS_PORT)],
         },
     },
 }
+
+# Общий клиент Redis (можно импортировать где угодно)
+REDIS_CLIENT = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 
 # Брокер сообщений (Redis)
