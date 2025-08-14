@@ -138,22 +138,26 @@ class GameService:
             game.save(update_fields=["status"])
             return {"status": "finished", "winner": None}
 
-        # Выбор победителя (рандом)
-        winner = random.choice(players)
-        game.status = "finished"  # соответствующее значение из status_choices
+        total_bet = sum(float(p.bet_ton) for p in players)
+        if total_bet == 0:
+            # Если все поставили 0, выбираем случайно
+            winner = random.choice(players)
+        else:
+            weights = [float(p.bet_ton) / total_bet for p in players]
+            winner = random.choices(players, weights=weights, k=1)[0]
+
+        game.status = Game.Status.FINISHED
         game.save(update_fields=["status"])
 
         return {
             "status": "finished",
             "winner": winner.user.username,
-            "pot": float(sum(p.bet_ton for p in players)),
+            "pot": total_bet,
             "players": [
                 {
                     "username": p.user.username,
                     "bet": float(p.bet_ton),
-                    "chance": round(
-                        (float(p.bet_ton) / float(sum(x.bet_ton for x in players))) * 100, 2
-                    )
+                    "chance": round((float(p.bet_ton) / total_bet) * 100, 2) if total_bet > 0 else 0
                 }
                 for p in players
             ]
