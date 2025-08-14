@@ -1,16 +1,23 @@
 import os
+import django
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.auth import AuthMiddlewareStack
+from django.core.asgi import get_asgi_application
+import games.routing  # твой роутер для WebSocket
 
+# Указываем Django, какой settings использовать
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
-from django.core.asgi import get_asgi_application
-from channels.routing import ProtocolTypeRouter, URLRouter
-import games.routing
+# Django должен быть инициализирован до импортов моделей
+django.setup()
 
-from middleware.telegram_auth import TelegramAuthMiddlewareStack
+# HTTP-приложение (обычный Django)
+django_asgi_app = get_asgi_application()
 
+# ASGI-приложение с поддержкой HTTP и WebSocket
 application = ProtocolTypeRouter({
-    "http": get_asgi_application(),
-    "websocket": TelegramAuthMiddlewareStack(
+    "http": django_asgi_app,
+    "websocket": AuthMiddlewareStack(
         URLRouter(
             games.routing.websocket_urlpatterns
         )

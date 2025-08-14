@@ -142,16 +142,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 #env
 BOT_TOKEN=os.getenv('BOT_TOKEN')
 
+
 # JWT конфиг
-JWT_SECRET = os.getenv("JWT_SECRET", SECRET_KEY)
-JWT_ALGORITHM = "HS256"
-JWT_EXP_DELTA = timedelta(days=7)
+JWT_SECRET = os.getenv("JWT_SECRET")
+JWT_SECRET_2 = os.getenv("JWT_SECRET_2")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+JWT_ACCESS_LIFETIME = timedelta(seconds=int(os.getenv("JWT_ACCESS_LIFETIME", 300)))
+JWT_REFRESH_LIFETIME = timedelta(seconds=int(os.getenv("JWT_REFRESH_LIFETIME", 604800)))
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework.authentication.BasicAuthentication",  # уберёшь если не нужно
-        "rest_framework.authentication.SessionAuthentication",  # уберёшь если не нужно
-    )
+    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    "DEFAULT_PERMISSION_CLASSES": [],
 }
 
 

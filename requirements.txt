@@ -12,10 +12,11 @@ redis>=5.0
 django-celery-beat>=2.5.0
 whitenoise
 Pillow
-# django-jazzmin
 pyjwt
-python-dotenv
 channels==4.1.0
 channels-redis==4.2.0
 daphne==4.1.2
 uvicorn[standard]
+hiredis>=2.3
+python-multipart>=0.0.9
+cryptography>=42.0.5
