@@ -3,11 +3,9 @@ import time
 from django.conf import settings
 from django.contrib.auth import get_user_model
 
-
 class AuthService:
     @staticmethod
     def create_access_token(user_id):
-        
         payload = {
             "user_id": user_id,
             "exp": int(time.time()) + int(settings.JWT_ACCESS_LIFETIME.total_seconds()),
@@ -38,8 +36,7 @@ class AuthService:
     @staticmethod
     def authenticate_telegram(telegram_id, username=None):
         User = get_user_model()
-
-        user, created = User.objects.get_or_create(
+        user, _ = User.objects.get_or_create(
             username=f"tg_{telegram_id}",
             defaults={"telegram_id": telegram_id}
         )

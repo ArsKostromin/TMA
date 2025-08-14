@@ -151,8 +151,12 @@ JWT_ACCESS_LIFETIME = timedelta(seconds=int(os.getenv("JWT_ACCESS_LIFETIME", 300
 JWT_REFRESH_LIFETIME = timedelta(seconds=int(os.getenv("JWT_REFRESH_LIFETIME", 604800)))
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
-    "DEFAULT_PERMISSION_CLASSES": [],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "user.authentication.JWTAuthentication",  # наш класс
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",  # глобально разрешаем
+    ],
 }
 
 
