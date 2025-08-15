@@ -77,15 +77,39 @@ class GameService:
     @staticmethod
     def calc_and_save_pot_chances(game_id):
         from games.models import Game, GamePlayer
+        from games.tasks import finish_game_task, send_timer_task
+
         game = Game.objects.prefetch_related("players").get(id=game_id)
         total_bet = sum([p.bet_ton for p in game.players.all()])
 
+        # Считаем шансы
         for p in game.players.all():
             chance = (p.bet_ton / total_bet) * 100 if total_bet > 0 else 0
             GamePlayer.objects.filter(id=p.id).update(chance_percent=chance)
 
         game.pot_amount_ton = total_bet
         game.save()
+
+        # === Проверка условий старта таймера ===
+        # Считаем игроков, которые реально сделали ставку
+        active_players_count = GamePlayer.objects.filter(
+            game_id=game_id,
+            bet_ton__gt=0
+        ).count()
+
+        if active_players_count >= 2:
+            timer_key = f"game_timer:{game_id}"
+            if not r.exists(timer_key):
+                r.set(timer_key, "running", ex=40)
+
+                # Обновляем статус игры на "running"
+                Game.objects.filter(id=game_id).update(status="running")
+
+                # Запуск секундомера (опционально, если хочешь в WS каждую секунду)
+                send_timer_task.apply_async(args=[game_id, 40])
+
+                # Запуск завершения игры
+                finish_game_task.apply_async(args=[game_id], countdown=40)
 
     @staticmethod
     def get_game_state(game_id):
@@ -115,17 +139,6 @@ class GameService:
         GamePlayer.objects.get_or_create(game_id=game_id, user=user)
 
         count = GamePlayer.objects.filter(game_id=game_id).count()
-
-        if count >= 2:
-            timer_key = f"game_timer:{game_id}"
-            if not r.exists(timer_key):
-                r.set(timer_key, "running", ex=40)
-
-                # Обновляем статус игры на "running"
-                GameModel.objects.filter(id=game_id).update(status="running")
-
-                finish_game_task.apply_async(args=[game_id], countdown=40)
-
 
     @staticmethod
     def finish_game(game_id):
