@@ -6,6 +6,7 @@ from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from .services.auth import AuthService
 from .services.game import GameService
+from django.core.exceptions import ValidationError
 
 
 class PvpGameConsumer(AsyncWebsocketConsumer):
@@ -26,7 +27,7 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         now = time.time()
-        if now - self.last_action_time < self.RATE_LIMIT_SECONDS:
+        if now - getattr(self, "last_action_time", 0) < self.RATE_LIMIT_SECONDS:
             await self.send(json.dumps({"error": "Too many requests"}))
             return
         self.last_action_time = now
@@ -34,7 +35,8 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data)
         action = data.get("action")
 
-        if not self.authenticated:
+        # ещё не авторизован
+        if not getattr(self, "authenticated", False):
             if action == "authenticate":
                 token = data.get("token")
                 if not token:
@@ -46,12 +48,17 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
                     await self.close()
                     return
 
+                # сохраняем авторизацию
                 self.scope["user"] = user
+                self.user = user
                 self.authenticated = True
 
+                # ищем или создаём игру
                 game_id = await sync_to_async(GameService.find_user_game)(user)
                 if not game_id:
-                    game_id, room_group_name = await sync_to_async(GameService.get_or_create_game_and_player)(user)
+                    game_id, room_group_name = await sync_to_async(
+                        GameService.get_or_create_game_and_player
+                    )(user)
                 else:
                     room_group_name = f"pvp_{game_id}"
                     await sync_to_async(GameService.ensure_player_in_game)(user, game_id)
@@ -60,7 +67,7 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
                 self.room_group_name = room_group_name
                 await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
-                # запуск таймера, если игроков ≥ 2
+                # регаем игрока
                 await sync_to_async(GameService.add_player_to_game)(self.game_id, user)
 
                 await self.send_game_state()
@@ -68,17 +75,17 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
                 await self.close()
             return
 
+        # уже авторизован
         if action == "bet":
-            user = await AuthService.get_authenticated_user(data.get("token"))
-            if not user:
-                await self.close()
-                return
-
-            amount = Decimal(data.get("amount", "0"))
-            await sync_to_async(GameService.update_bet)(user, amount, self.game_id)
-            await sync_to_async(GameService.calc_and_save_pot_chances)(self.game_id)
-            await self.send_game_state()
-
+            amount = Decimal(str(data.get("amount", "0")))
+            try:
+                await sync_to_async(GameService.update_bet)(self.user, amount, self.game_id)
+                await sync_to_async(GameService.calc_and_save_pot_chances)(self.game_id)
+                await self.send_game_state()
+            except ValidationError as e:
+                msg = e.messages[0] if hasattr(e, "messages") else str(e)
+                await self.send(json.dumps({"error": msg}))
+                
     async def send_game_state(self):
         game_data = await sync_to_async(GameService.get_game_state)(self.game_id)
         await self.channel_layer.group_send(
@@ -94,3 +101,15 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
 
     async def game_finished(self, event):
         await self.send(text_data=json.dumps(event))
+
+    async def timer_started(self, event):
+        await self.send(json.dumps({
+            "type": "timer_started",
+            "duration": event["duration"]
+        }))
+
+    async def timer_update(self, event):
+        await self.send(json.dumps({
+            "type": "timer_update",
+            "remaining": event["remaining"]
+        }))

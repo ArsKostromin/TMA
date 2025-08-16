@@ -4,6 +4,8 @@ from decimal import Decimal
 from django.db import transaction
 from asgiref.sync import sync_to_async
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.utils.translation import gettext as _
 
 r = settings.REDIS_CLIENT
 
@@ -64,12 +66,13 @@ class GameService:
         amount = Decimal(amount)
 
         # Проверка баланса
+        # if not settings.DEBUG:
         if user.balance_ton < amount:
             raise ValidationError(_("Недостаточно средств на балансе TON"))
 
         # Списываем деньги (можно atomic update)
-        user.balance_ton -= amount
-        user.save(update_fields=["balance_ton"])
+        # user.balance_ton -= amount
+        # user.save(update_fields=["balance_ton"])
 
         # Обновляем ставку в игре
         GamePlayer.objects.filter(game_id=game_id, user=user).update(bet_ton=amount)
@@ -77,7 +80,7 @@ class GameService:
     @staticmethod
     def calc_and_save_pot_chances(game_id):
         from games.models import Game, GamePlayer
-        from games.tasks import finish_game_task, send_timer_task
+        from games.tasks import start_timer_task, send_timer_task, finish_game_task
 
         game = Game.objects.prefetch_related("players").get(id=game_id)
         total_bet = sum([p.bet_ton for p in game.players.all()])
@@ -97,18 +100,20 @@ class GameService:
             bet_ton__gt=0
         ).count()
 
-        if active_players_count >= 2:
+        if active_players_count >= 2 and game.status!="finished":
             timer_key = f"game_timer:{game_id}"
             if not r.exists(timer_key):
                 r.set(timer_key, "running", ex=40)
 
-                # Обновляем статус игры на "running"
                 Game.objects.filter(id=game_id).update(status="running")
 
-                # Запуск секундомера (опционально, если хочешь в WS каждую секунду)
+                # Сообщаем, что пошёл таймер
+                start_timer_task.apply_async(args=[game_id, 40])
+
+                # Запуск секундомера
                 send_timer_task.apply_async(args=[game_id, 40])
 
-                # Запуск завершения игры
+                # Завершение игры
                 finish_game_task.apply_async(args=[game_id], countdown=40)
 
     @staticmethod
@@ -143,24 +148,43 @@ class GameService:
     @staticmethod
     def finish_game(game_id):
         from games.models import Game, GamePlayer
+
         game = Game.objects.get(id=game_id)
-        players = list(GamePlayer.objects.filter(game_id=game_id))
+        players = list(GamePlayer.objects.filter(game_id=game_id).select_related("user"))
 
         if not players:
-            game.status = Game.Status.FINISHED
+            game.status = "finished"
             game.save(update_fields=["status"])
             return {"status": "finished", "winner": None}
 
         total_bet = sum(float(p.bet_ton) for p in players)
+
+        # Определяем победителя
         if total_bet == 0:
-            # Если все поставили 0, выбираем случайно
             winner = random.choice(players)
         else:
             weights = [float(p.bet_ton) / total_bet for p in players]
             winner = random.choices(players, weights=weights, k=1)[0]
 
-        game.status = Game.Status.FINISHED
-        game.save(update_fields=["status"])
+        # --- Финансовая логика ---
+        from django.db import transaction
+        with transaction.atomic():
+            # списываем ставки у всех
+            for p in players:
+                if p.bet_ton > 0:
+                    p.user.balance_ton -= p.bet_ton
+                    p.user.save(update_fields=["balance_ton"])
+
+            # начисляем победителю банк
+            if total_bet > 0:
+                winner.user.balance_ton += Decimal(str(total_bet))
+                winner.user.save(update_fields=["balance_ton"])
+
+            # обновляем игру
+            game.status = "finished"
+            game.save(update_fields=["status"])
+            game.winner = p.user
+            game.save(update_fields=["winner"])
 
         return {
             "status": "finished",
@@ -170,7 +194,8 @@ class GameService:
                 {
                     "username": p.user.username,
                     "bet": float(p.bet_ton),
-                    "chance": round((float(p.bet_ton) / total_bet) * 100, 2) if total_bet > 0 else 0
+                    "chance": round((float(p.bet_ton) / total_bet) * 100, 2) if total_bet > 0 else 0,
+                    "final_balance": float(p.user.balance_ton)
                 }
                 for p in players
             ]

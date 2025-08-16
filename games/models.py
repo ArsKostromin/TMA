@@ -78,3 +78,15 @@ class SpinGame(models.Model):
 
     def __str__(self):
         return f"Spin для {self.player} ({self.played_at})"
+
+    def clean(self):
+        from core.models import Config
+
+        min_stars = Config.get("ROLLS_MIN_STARS", 400, int)
+        min_ton = Config.get("ROLLS_MIN_TON", Decimal, Decimal("1.5"))
+
+        if self.bet_stars and self.bet_stars < min_stars:
+            raise ValidationError(f"Минимальная ставка {min_stars} Stars")
+
+        if self.bet_ton and self.bet_ton < min_ton:
+            raise ValidationError(f"Минимальная ставка {min_ton} TON")
