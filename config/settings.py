@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     "rest_framework",
     'channels',
+    "drf_spectacular",
+    "drf_spectacular_sidecar",
 
     'user',
     'games',
@@ -158,6 +160,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",  # глобально разрешаем
     ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 
@@ -190,3 +193,12 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
+
+
+#swagger 
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Spinzy Gift API",
+    "DESCRIPTION": "Документация для API игры Spinzy Gift",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,  # чтобы схема не дублировалась в /docs
+}

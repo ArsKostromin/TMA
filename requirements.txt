@@ -20,3 +20,5 @@ uvicorn[standard]
 hiredis>=2.3
 python-multipart>=0.0.9
 cryptography>=42.0.5
+drf-spectacular>=0.27.0
+drf-spectacular-sidecar>=2024.4.1

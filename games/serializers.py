@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Game, GamePlayer, SpinGame, SpinWheelSector
 from gifts.models import Gift
 from django.contrib.auth import get_user_model
+from django.db.models import Sum
 
 User = get_user_model()
 
@@ -40,17 +41,6 @@ class GameHistorySerializer(serializers.ModelSerializer):
         return obj.winner_id == self.context["request"].user.id
 
 
-class SpinGameHistorySerializer(serializers.ModelSerializer):
-    gift_won = GiftSerializer()
-
-    class Meta:
-        model = SpinGame
-        fields = [
-            "id", "sectors_count", "bet_ton", "bet_stars",
-            "result_sector", "gift_won", "played_at"
-        ]
-
-
 class GiftSerializer(serializers.ModelSerializer):
     class Meta:
         model = Gift
@@ -78,21 +68,33 @@ class PublicGameHistorySerializer(serializers.ModelSerializer):
 
 
 class TopPlayerSerializer(serializers.ModelSerializer):
-    wins_count = serializers.IntegerField()
-    total_wins_ton = serializers.DecimalField(max_digits=12, decimal_places=2)
-    total_wins_stars = serializers.IntegerField()
+    wins_count = serializers.SerializerMethodField()
+    total_wins_ton = serializers.SerializerMethodField()
+    total_wins_stars = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             "id",
             "username",
-            "first_name",
-            "avatar_url",   # берём прямо из модели User
+            "avatar_url",
             "wins_count",
             "total_wins_ton",
             "total_wins_stars",
         ]
+
+    def get_wins_count(self, obj):
+        return obj.games_won.filter(status="finished", mode="pvp").count()
+
+    def get_total_wins_ton(self, obj):
+        return obj.games_won.filter(status="finished", mode="pvp").aggregate(
+            total=Sum("pot_amount_ton")
+        )["total"] or 0
+
+    def get_total_wins_stars(self, obj):
+        return obj.games_won.filter(status="finished", mode="pvp").aggregate(
+            total=Sum("pot_amount_stars")
+        )["total"] or 0
 
 
 class GiftSerializer(serializers.ModelSerializer):
