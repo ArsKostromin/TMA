@@ -1,41 +1,35 @@
 from django.contrib import admin
-from .models import Game, GamePlayer, SpinGame
-
-
-class GamePlayerInline(admin.TabularInline):
-    model = GamePlayer
-    extra = 0
-    readonly_fields = ("user", "bet_ton", "bet_stars", "chance_percent", "joined_at")
-    can_delete = False
+from .models import Game, GamePlayer, SpinGame, SpinWheelSector
 
 
 @admin.register(Game)
 class GameAdmin(admin.ModelAdmin):
-    list_display = (
-        "id", "mode", "status", "pot_amount_ton", "pot_amount_stars",
-        "winner", "commission_percent", "started_at", "ended_at"
-    )
-    list_filter = ("mode", "status", "started_at", "ended_at")
-    search_fields = ("id", "hash", "winner__username", "winner__telegram_id")
-    readonly_fields = ("started_at", "ended_at", "hash")
-    inlines = [GamePlayerInline]
+    list_display = ("id", "mode", "status", "pot_amount_ton", "pot_amount_stars", "commission_percent", "winner", "started_at", "ended_at")
+    list_filter = ("mode", "status", "started_at")
+    search_fields = ("id", "winner__username", "winner__id")
+    date_hierarchy = "started_at"
+    ordering = ("-started_at",)
 
 
 @admin.register(GamePlayer)
 class GamePlayerAdmin(admin.ModelAdmin):
-    list_display = (
-        "id", "game", "user", "bet_ton", "bet_stars", "chance_percent", "joined_at"
-    )
-    list_filter = ("joined_at", "chance_percent")
-    search_fields = ("user__username", "user__telegram_id", "game__id")
+    list_display = ("id", "game", "user", "bet_ton", "bet_stars", "chance_percent", "joined_at")
+    list_filter = ("game__mode", "joined_at")
+    search_fields = ("user__username", "user__id", "game__id")
+    autocomplete_fields = ("game", "user", "gifts")
 
 
 @admin.register(SpinGame)
 class SpinGameAdmin(admin.ModelAdmin):
-    list_display = (
-        "id", "player", "sectors_count", "bet_ton", "bet_stars",
-        "result_sector", "gift_won", "played_at"
-    )
-    list_filter = ("sectors_count", "played_at")
-    search_fields = ("player__username", "player__telegram_id")
-    readonly_fields = ("played_at",)
+    list_display = ("id", "player", "bet_stars", "bet_ton", "win_amount", "gift_won", "result_sector", "played_at")
+    list_filter = ("played_at", "gift_won")
+    search_fields = ("player__username", "player__id")
+    autocomplete_fields = ("player", "gift_won")
+
+
+@admin.register(SpinWheelSector)
+class SpinWheelSectorAdmin(admin.ModelAdmin):
+    list_display = ("index", "gift", "probability")
+    search_fields = ("gift__name",)
+    ordering = ("index",)
+    autocomplete_fields = ("gift",)

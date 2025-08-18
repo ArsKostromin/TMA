@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Game, GamePlayer, SpinGame
+from .models import Game, GamePlayer, SpinGame, SpinWheelSector
 from gifts.models import Gift
 from django.contrib.auth import get_user_model
 
@@ -92,4 +92,28 @@ class TopPlayerSerializer(serializers.ModelSerializer):
             "wins_count",
             "total_wins_ton",
             "total_wins_stars",
+        ]
+
+class GiftSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Gift
+        fields = [
+            "id",
+            "name",
+            "description",
+            "image_url",
+            "price_ton",
+            "rarity",
+        ]
+
+
+class SpinWheelSectorSerializer(serializers.ModelSerializer):
+    gift = GiftSerializer()
+
+    class Meta:
+        model = SpinWheelSector
+        fields = [
+            "index",
+            "probability",
+            "gift",
         ]
