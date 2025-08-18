@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import Game, GamePlayer, SpinGame, SpinWheelSector
-from .serializers import GameHistorySerializer, SpinGameHistorySerializer, PublicGameHistorySerializer, TopPlayerSerializer, SpinWheelSectorSerializer
+from .serializers import GameHistorySerializer, SpinGameHistorySerializer, PublicGameHistorySerializer, TopPlayerSerializer, SpinWheelSectorSerializer, SpinGameHistorySerializer
 from django.db.models import Sum, Count, Q
 from rest_framework.generics import ListAPIView
 from django.contrib.auth import get_user_model
@@ -128,3 +128,16 @@ class SpinWheelView(APIView):
         sectors = SpinWheelSector.objects.select_related("gift").all().order_by("index")
         serializer = SpinWheelSectorSerializer(sectors, many=True)
         return Response({"wheel": serializer.data})
+
+
+class SpinGameHistoryView(generics.ListAPIView):
+    serializer_class = SpinGameHistorySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            SpinGame.objects
+            .filter(player=self.request.user)
+            .select_related("gift_won")
+            .order_by("-played_at")
+        )

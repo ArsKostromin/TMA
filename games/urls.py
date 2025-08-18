@@ -16,4 +16,6 @@ urlpatterns = [
 
     # Получить конфигурацию колеса (сектора с шансами и подарками) → доступно всем
     path("spin/wheel/", SpinWheelView.as_view(), name="spin-wheel"),
+    #история спин игр
+    path("spin/history/", SpinGameHistoryView.as_view(), name="spin-history"),
 ]

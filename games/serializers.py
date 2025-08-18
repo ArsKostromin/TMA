@@ -94,6 +94,7 @@ class TopPlayerSerializer(serializers.ModelSerializer):
             "total_wins_stars",
         ]
 
+
 class GiftSerializer(serializers.ModelSerializer):
     class Meta:
         model = Gift
@@ -116,4 +117,20 @@ class SpinWheelSectorSerializer(serializers.ModelSerializer):
             "index",
             "probability",
             "gift",
+        ]
+
+
+class SpinGameHistorySerializer(serializers.ModelSerializer):
+    gift_won = GiftSerializer(read_only=True)
+
+    class Meta:
+        model = SpinGame
+        fields = [
+            "id",
+            "bet_stars",
+            "bet_ton",
+            "win_amount",
+            "gift_won",
+            "result_sector",
+            "played_at",
         ]
