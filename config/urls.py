@@ -13,6 +13,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("user/", include("user.urls")),
     path("games/", include("games.urls")),
+    path("Inventory/", include("gifts.urls")),
 
     # Схема и Swagger/Redoc
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
