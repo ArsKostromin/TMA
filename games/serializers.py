@@ -3,6 +3,7 @@ from .models import Game, GamePlayer, SpinGame, SpinWheelSector
 from gifts.models import Gift
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
+from decimal import Decimal
 
 User = get_user_model()
 
@@ -136,3 +137,18 @@ class SpinGameHistorySerializer(serializers.ModelSerializer):
             "result_sector",
             "played_at",
         ]
+
+
+class SpinPlayRequestSerializer(serializers.Serializer):
+    bet_stars = serializers.IntegerField(required=False, min_value=0, default=0)
+    bet_ton = serializers.DecimalField(
+        required=False, max_digits=18, decimal_places=6, min_value=0, default=Decimal("0")
+    )
+
+class SpinPlayResponseSerializer(serializers.Serializer):
+    game_id = serializers.IntegerField()
+    bet_stars = serializers.IntegerField()
+    bet_ton = serializers.DecimalField(max_digits=18, decimal_places=6)
+    result_sector = serializers.CharField()
+    gift_won = serializers.CharField(allow_null=True)
+    balances = serializers.DictField(child=serializers.CharField())

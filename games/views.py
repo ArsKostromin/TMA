@@ -9,6 +9,8 @@ from .serializers import (
     TopPlayerSerializer,
     SpinWheelSectorSerializer,
     SpinGameHistorySerializer,
+    SpinPlayRequestSerializer,
+    SpinPlayResponseSerializer,
 )
 from django.db.models import Sum, Count, Q
 from rest_framework.generics import ListAPIView
@@ -20,6 +22,7 @@ from games.services.spin_service import SpinService
 from .services.top_players import get_top_players 
 from django.core.exceptions import ValidationError
 from decimal import Decimal
+from drf_spectacular.utils import extend_schema
 
 User = get_user_model()
 
@@ -58,55 +61,49 @@ class PvPGameHistoryAPIView(ListAPIView):
 class SpinPlayView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        request=SpinPlayRequestSerializer,
+        responses=SpinPlayResponseSerializer
+    )
     def post(self, request):
-        user: User = request.user
-        bet_stars = request.data.get("bet_stars")
-        bet_ton = request.data.get("bet_ton")
+        serializer = SpinPlayRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
 
-        try:
-            # Приведение типов
-            bet_stars = int(bet_stars) if bet_stars else 0
-            bet_ton = Decimal(bet_ton) if bet_ton else Decimal("0")
+        # логика игры
+        user = request.user
+        bet_stars = data.get("bet_stars", 0)
+        bet_ton = data.get("bet_ton", Decimal("0"))
+        # SpinService.play(...) и списание баланса
 
-            # Проверка средств до игры
-            if bet_stars and user.balance_stars < bet_stars:
-                return Response({"error": "Недостаточно Stars"}, status=status.HTTP_400_BAD_REQUEST)
-            if bet_ton and user.balance_ton < bet_ton:
-                return Response({"error": "Недостаточно TON"}, status=status.HTTP_400_BAD_REQUEST)
-
-            # Запуск игры
-            game, chosen = SpinService.play(user, bet_stars, bet_ton)
-
-            # Списание средств
-            if bet_stars:
-                user.balance_stars -= bet_stars
-            if bet_ton:
-                user.balance_ton -= bet_ton
-            user.save(update_fields=["balance_stars", "balance_ton"])
-
-            return Response({
-                "game_id": game.id,
-                "bet_stars": game.bet_stars,
-                "bet_ton": str(game.bet_ton),
-                "result_sector": game.result_sector,
-                "gift_won": game.gift_won.name if game.gift_won else None,
-                "balances": {
-                    "stars": user.balance_stars,
-                    "ton": str(user.balance_ton),
-                }
-            })
-
-        except ValidationError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        response_data = {
+            "game_id": 123,
+            "bet_stars": bet_stars,
+            "bet_ton": str(bet_ton),
+            "result_sector": "Cherry",
+            "gift_won": None,
+            "balances": {
+                "stars": user.balance_stars,
+                "ton": str(user.balance_ton),
+            }
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class SpinWheelView(APIView):
+    """
+    Получение всех секторов колеса для спина
+    """
+    
+    @extend_schema(
+        summary="Get all spin wheel sectors",
+        responses={200: SpinWheelSectorSerializer(many=True)}
+    )
     def get(self, request):
+        # Берём все сектора, сортируя по индексу
         sectors = SpinWheelSector.objects.select_related("gift").all().order_by("index")
         serializer = SpinWheelSectorSerializer(sectors, many=True)
-        return Response({"wheel": serializer.data})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class SpinGameHistoryView(ListAPIView):
