@@ -1,82 +1,72 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from drf_spectacular.utils import extend_schema
 from django.contrib.auth import get_user_model
 from .services.auth import AuthService
+from .services.telegram_auth import TelegramAuthService
 from django.conf import settings
 from .utils.telegram_auth import validate_init_data, get_user_avatar, parse_init_data_no_check
+from .serializers import (
+    RefreshTokenRequestSerializer,
+    RefreshTokenResponseSerializer,
+    LogoutResponseSerializer,
+    TelegramAuthRequestSerializer, 
+    TelegramAuthResponseSerializer
+)
 
 User = get_user_model()
 
 class TelegramAuthView(APIView):
+    @extend_schema(
+        request=TelegramAuthRequestSerializer,
+        responses={200: TelegramAuthResponseSerializer},
+        summary="Telegram authentication"
+    )
     def post(self, request):
-        init_data = request.data.get("initData")
-        if not init_data:
-            return Response({"error": "initData is required"}, status=400)
+        serializer = TelegramAuthRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        init_data = serializer.validated_data["initData"]
 
         try:
-            if settings.DEBUG:
-                data = parse_init_data_no_check(init_data)  # dev-режим, без подписи
-            else:
-                data = validate_init_data(init_data)  # prod — с проверкой HMAC
+            result = TelegramAuthService.authenticate(init_data)
         except ValueError as e:
-            return Response({"error": str(e)}, status=403)
+            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
 
-        tg_user = data.get("user")
-        if not tg_user:
-            return Response({"error": "No user data in initData"}, status=400)
-
-        avatar_url = get_user_avatar(tg_user["id"])
-
-        user, created = User.objects.get_or_create(
-            telegram_id=tg_user["id"],
-            defaults={
-                "username": tg_user.get("username", ""),
-                "avatar_url": avatar_url
-            }
-        )
-
-        if not created:
-            updated = False
-            if user.username != tg_user.get("username", ""):
-                user.username = tg_user.get("username", "")
-                updated = True
-            if user.avatar_url != avatar_url:
-                user.avatar_url = avatar_url
-                updated = True
-            if updated:
-                user.save()
-
-        access = AuthService.create_access_token(user.id)
-        refresh = AuthService.create_refresh_token(user.id)
-
-        return Response({
-            "id": user.id,
-            "username": user.username,
-            "avatar_url": user.avatar_url,
-            "access": access,
-            "refresh": refresh
-        })
+        response_serializer = TelegramAuthResponseSerializer(result)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 
 class RefreshTokenView(APIView):
+    @extend_schema(
+        request=RefreshTokenRequestSerializer,
+        responses={200: RefreshTokenResponseSerializer},
+        summary="Обновление access-токена",
+        description="Принимает refresh токен и возвращает новый access токен.",
+    )
     def post(self, request):
-        token = request.data.get("refresh")
-        if not token:
-            return Response({"error": "refresh token required"}, status=400)
+        serializer = RefreshTokenRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        token = serializer.validated_data["refresh"]
 
         try:
             payload = AuthService.decode_token(token)
             if payload.get("type") != "refresh":
-                return Response({"error": "Invalid token type"}, status=400)
+                return Response({"error": "Invalid token type"}, status=status.HTTP_400_BAD_REQUEST)
         except ValueError as e:
-            return Response({"error": str(e)}, status=401)
+            return Response({"error": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
 
         access = AuthService.create_access_token(payload["user_id"])
-        return Response({"access": access})
+        return Response({"access": access}, status=status.HTTP_200_OK)
 
 
 class LogoutView(APIView):
+    @extend_schema(
+        responses={200: LogoutResponseSerializer},
+        summary="Выход из системы",
+        description="Фактически ничего не делает (refresh токен не инвалидируется), просто возвращает сообщение."
+    )
     def post(self, request):
-        # Можно реализовать blacklist refresh токенов, но тут просто ответим
-        return Response({"message": "Logged out"})
+        return Response({"message": "Logged out"}, status=status.HTTP_200_OK)
