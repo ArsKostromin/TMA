@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
 
 from games.models import SpinGame, SpinWheelSector
+from gifts.models import Gift
 from core.models import Config
 from core import constants
 
@@ -93,13 +94,20 @@ class SpinService:
         """Создаём игру, учитываем ставку в весах, выбираем сектор, начисляем приз."""
         SpinService.validate_bet(bet_stars, bet_ton)
 
+        # Списываем балансы перед игрой
+        if bet_stars > 0:
+            user.subtract_stars(bet_stars)
+        if bet_ton > 0:
+            user.subtract_ton(bet_ton)
+
         game = SpinGame.objects.create(
             player=user,
             bet_stars=bet_stars,
             bet_ton=bet_ton,
         )
 
-        sectors = list(SpinWheelSector.objects.all())
+        # Получаем сектора, исключая топовые (с нулевым шансом)
+        sectors = list(SpinWheelSector.objects.filter(probability__gt=0))
         if not sectors:
             raise ValidationError(_("Колесо не настроено!"))
 
@@ -112,15 +120,19 @@ class SpinService:
         game.gift_won = chosen.gift
         game.save(update_fields=["result_sector", "gift_won"])
 
+        # Создаём НОВЫЙ подарок для пользователя на основе выбранного сектора
         if chosen.gift:
-            Gift.objects.create(
+            new_gift = Gift.objects.create(
                 user=user,
-                tg_nft_id=chosen.gift.tg_nft_id,  # уникальный id из ТГ
+                tg_nft_id=f"spin_{game.id}_{chosen.gift.id}",  # уникальный ID для спина
                 name=chosen.gift.name,
                 description=chosen.gift.description,
                 image_url=chosen.gift.image_url,
                 price_ton=chosen.gift.price_ton,
                 rarity=chosen.gift.rarity,
             )
+            # Обновляем игру с новым подарком
+            game.gift_won = new_gift
+            game.save(update_fields=["gift_won"])
 
         return game, chosen

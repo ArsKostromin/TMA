@@ -125,13 +125,24 @@ class GameService:
     @staticmethod
     def get_game_state(game_id):
         from games.models import Game
-        game = Game.objects.prefetch_related("players__user").get(id=game_id)
+        game = Game.objects.prefetch_related("players__user", "players__gifts").get(id=game_id)
         players_data = [
             {
                 "id": p.user.id,
                 "username": p.user.username,
+                "avatar_url": p.user.avatar_url,
                 "bet_ton": str(p.bet_ton),
                 "chance_percent": float(p.chance_percent),
+                "gifts": [
+                    {
+                        "id": gift.id,
+                        "name": gift.name,
+                        "price_ton": str(gift.price_ton),
+                        "rarity": gift.rarity,
+                        "image_url": gift.image_url,
+                    }
+                    for gift in p.gifts.all()
+                ],
             }
             for p in game.players.all()
         ]

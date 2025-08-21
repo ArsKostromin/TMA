@@ -69,25 +69,42 @@ class SpinPlayView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        # логика игры
         user = request.user
         bet_stars = data.get("bet_stars", 0)
         bet_ton = data.get("bet_ton", Decimal("0"))
-        # SpinService.play(...) и списание баланса
 
-        response_data = {
-            "game_id": 123,
-            "bet_stars": bet_stars,
-            "bet_ton": str(bet_ton),
-            "result_sector": "Cherry",
-            "gift_won": None,
-            "balances": {
-                "stars": user.balance_stars,
-                "ton": str(user.balance_ton),
+        try:
+            # Играем через SpinService
+            game, result = SpinService.play(user, bet_stars, bet_ton)
+            
+            # Списываем балансы
+            if bet_stars > 0:
+                user.subtract_stars(bet_stars)
+            if bet_ton > 0:
+                user.subtract_ton(bet_ton)
+
+            response_data = {
+                "game_id": game.id,
+                "bet_stars": bet_stars,
+                "bet_ton": str(bet_ton),
+                "result_sector": result.index,
+                "gift_won": {
+                    "id": result.gift.id,
+                    "name": result.gift.name,
+                    "image_url": result.gift.image_url,
+                    "price_ton": str(result.gift.price_ton),
+                    "rarity": result.gift.rarity,
+                } if result.gift else None,
+                "balances": {
+                    "stars": user.balance_stars,
+                    "ton": str(user.balance_ton),
+                }
             }
-        }
-        return Response(response_data, status=status.HTTP_200_OK)
-
+            return Response(response_data, status=status.HTTP_200_OK)
+            
+        except ValidationError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            
 
 class SpinWheelView(APIView):
     """
