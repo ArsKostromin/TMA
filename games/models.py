@@ -86,9 +86,10 @@ class GamePlayer(models.Model):
         self.total_bet_ton = self.bet_ton + gifts_total
         return self.total_bet_ton
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs):# потом лучше изменить
+        super().save(*args, **kwargs)   # сначала сохраняем, получаем id
         self.recalc_total()
-        super().save(*args, **kwargs)
+        super().save(update_fields=["total_bet_ton"])  # второй раз, только total
 
     def __str__(self):
         return f"{self.user} в игре {self.game_id}"

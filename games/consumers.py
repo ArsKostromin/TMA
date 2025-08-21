@@ -7,7 +7,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from .services.auth import AuthService
 from .services.game import GameService
 from django.core.exceptions import ValidationError
-
+# from games.services.bet_service import BetService
 
 class PvpGameConsumer(AsyncWebsocketConsumer):
     RATE_LIMIT_SECONDS = 0.5
@@ -81,7 +81,7 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
         if action == "bet":
             amount = Decimal(str(data.get("amount", "0")))
             try:
-                await sync_to_async(BetService.update_bet)(self.user, amount, self.game_id)
+                await sync_to_async(BetService.place_bet_ton)(self.user, self.game_id, amount)
                 await sync_to_async(GameService.calc_and_save_pot_chances)(self.game_id)
                 await self.send_game_state()
             except ValidationError as e:
@@ -91,7 +91,7 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
         if action == "bet_gift":
             gift_ids = data.get("gift_ids", [])  # список ID подарков
             try:
-                await sync_to_async(BetService.place_bet)(self.user, self.game_id, gift_ids)
+                await sync_to_async(BetService.place_bet_gifts)(self.user, self.game_id, gift_ids)
                 await sync_to_async(GameService.calc_and_save_pot_chances)(self.game_id)
                 await self.send_game_state()
             except ValidationError as e:

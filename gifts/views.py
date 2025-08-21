@@ -7,12 +7,14 @@ from drf_yasg import openapi
 from .serializers import InventorySerializer
 from rest_framework import generics
 from .services.inventory import InventoryService
+from .serializers import GiftSerializer
 
+# ... existing code ...
 class UserInventoryView(generics.ListAPIView):
     """
     Получить список подарков в инвентаре текущего пользователя
     """
-    serializer_class = InventorySerializer
+    serializer_class = GiftSerializer  # Используем GiftSerializer вместо InventorySerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
