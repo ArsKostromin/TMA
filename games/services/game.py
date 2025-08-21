@@ -82,25 +82,31 @@ class GameService:
         from games.models import Game, GamePlayer
         from games.tasks import start_timer_task, send_timer_task, finish_game_task
 
-        game = Game.objects.prefetch_related("players").get(id=game_id)
-        total_bet = sum([p.bet_ton for p in game.players.all()])
+        game = Game.objects.prefetch_related("players__gifts").get(id=game_id)
+
+        # Пересчитываем total_bet_ton для каждого игрока
+        total_bet = Decimal("0.00")
+        for p in game.players.all():
+            p.recalc_total()
+            p.save(update_fields=["total_bet_ton"])  # сохраняем пересчитанное значение
+            total_bet += p.total_bet_ton
 
         # Считаем шансы
         for p in game.players.all():
-            chance = (p.bet_ton / total_bet) * 100 if total_bet > 0 else 0
+            chance = (p.total_bet_ton / total_bet * 100) if total_bet > 0 else 0
             GamePlayer.objects.filter(id=p.id).update(chance_percent=chance)
 
+        # Обновляем банк игры
         game.pot_amount_ton = total_bet
-        game.save()
+        game.save(update_fields=["pot_amount_ton"])
 
         # === Проверка условий старта таймера ===
-        # Считаем игроков, которые реально сделали ставку
         active_players_count = GamePlayer.objects.filter(
             game_id=game_id,
-            bet_ton__gt=0
+            total_bet_ton__gt=0
         ).count()
 
-        if active_players_count >= 2 and game.status!="finished":
+        if active_players_count >= 2 and game.status != "finished":
             timer_key = f"game_timer:{game_id}"
             if not r.exists(timer_key):
                 r.set(timer_key, "running", ex=40)
@@ -150,20 +156,34 @@ class GameService:
         from games.models import Game, GamePlayer
 
         game = Game.objects.get(id=game_id)
-        players = list(GamePlayer.objects.filter(game_id=game_id).select_related("user"))
+        players = list(
+            GamePlayer.objects
+            .filter(game_id=game_id)
+            .select_related("user")
+            .prefetch_related("gifts")
+        )
 
         if not players:
             game.status = "finished"
             game.save(update_fields=["status"])
             return {"status": "finished", "winner": None}
 
-        total_bet = sum(float(p.bet_ton) for p in players)
+        # Пересчитываем total для корректного розыгрыша (TON + подарки)
+        for p in players:
+            p.recalc_total()
+
+        # Общая сумма ставок: эквивалент (TON + подарки) — для определения победителя
+        total_equiv_decimal = sum((p.total_bet_ton for p in players), Decimal("0.00"))
+        total_equiv = float(total_equiv_decimal)
+        # Сумма TON ставок — для реального начисления баланса победителю
+        total_ton_decimal = sum((p.bet_ton for p in players), Decimal("0.00"))
 
         # Определяем победителя
-        if total_bet == 0:
+        if total_equiv == 0:
             winner = random.choice(players)
         else:
-            weights = [float(p.bet_ton) / total_bet for p in players]
+            # Используем итоговую ставку (TON + подарки) как вес
+            weights = [float(p.total_bet_ton) / total_equiv for p in players]
             winner = random.choices(players, weights=weights, k=1)[0]
 
         # --- Финансовая логика ---
@@ -175,26 +195,40 @@ class GameService:
                     p.user.balance_ton -= p.bet_ton
                     p.user.save(update_fields=["balance_ton"])
 
-            # начисляем победителю банк
-            if total_bet > 0:
-                winner.user.balance_ton += Decimal(str(total_bet))
+            # передаём все поставленные подарки победителю
+            for p in players:
+                player_gifts = list(p.gifts.all())
+                if not player_gifts:
+                    continue
+                for gift in player_gifts:
+                    # меняем владельца подарка на победителя
+                    gift.user = winner.user
+                    gift.save(update_fields=["user"])
+                # очищаем привязку подарков к ставке игрока в этой игре
+                p.gifts.clear()
+
+            # начисляем победителю банк (только TON)
+            if total_ton_decimal > 0:
+                winner.user.balance_ton += total_ton_decimal
                 winner.user.save(update_fields=["balance_ton"])
 
             # обновляем игру
             game.status = "finished"
-            game.save(update_fields=["status"])
-            game.winner = p.user
-            game.save(update_fields=["winner"])
+            # сохраняем финальный банк в игре как эквивалент (TON + gifts)
+            game.pot_amount_ton = total_equiv_decimal
+            game.winner = winner.user
+            game.save(update_fields=["status", "pot_amount_ton", "winner"])
 
         return {
             "status": "finished",
             "winner": winner.user.username,
-            "pot": total_bet,
+            # Возвращаем реальный TON-пот без учёта подарков
+            "pot": float(total_ton_decimal),
             "players": [
                 {
                     "username": p.user.username,
-                    "bet": float(p.bet_ton),
-                    "chance": round((float(p.bet_ton) / total_bet) * 100, 2) if total_bet > 0 else 0,
+                    "bet": float(p.total_bet_ton),
+                    "chance": round((float(p.total_bet_ton) / total_equiv) * 100, 2) if total_equiv > 0 else 0,
                     "final_balance": float(p.user.balance_ton)
                 }
                 for p in players

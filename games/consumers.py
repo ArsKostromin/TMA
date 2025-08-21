@@ -26,6 +26,8 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     async def receive(self, text_data):
+        from games.services.bet_service import BetService
+
         now = time.time()
         if now - getattr(self, "last_action_time", 0) < self.RATE_LIMIT_SECONDS:
             await self.send(json.dumps({"error": "Too many requests"}))
@@ -79,7 +81,17 @@ class PvpGameConsumer(AsyncWebsocketConsumer):
         if action == "bet":
             amount = Decimal(str(data.get("amount", "0")))
             try:
-                await sync_to_async(GameService.update_bet)(self.user, amount, self.game_id)
+                await sync_to_async(BetService.update_bet)(self.user, amount, self.game_id)
+                await sync_to_async(GameService.calc_and_save_pot_chances)(self.game_id)
+                await self.send_game_state()
+            except ValidationError as e:
+                msg = e.messages[0] if hasattr(e, "messages") else str(e)
+                await self.send(json.dumps({"error": msg}))
+
+        if action == "bet_gift":
+            gift_ids = data.get("gift_ids", [])  # список ID подарков
+            try:
+                await sync_to_async(BetService.place_bet)(self.user, self.game_id, gift_ids)
                 await sync_to_async(GameService.calc_and_save_pot_chances)(self.game_id)
                 await self.send_game_state()
             except ValidationError as e:

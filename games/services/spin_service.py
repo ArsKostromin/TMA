@@ -6,7 +6,6 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
 
 from games.models import SpinGame, SpinWheelSector
-from gifts.models import Inventory
 from core.models import Config
 from core import constants
 
@@ -114,8 +113,14 @@ class SpinService:
         game.save(update_fields=["result_sector", "gift_won"])
 
         if chosen.gift:
-            inv, created = Inventory.objects.get_or_create(user=user, gift=chosen.gift, defaults={"quantity": 0})
-            inv.quantity += 1
-            inv.save(update_fields=["quantity"])
+            Gift.objects.create(
+                user=user,
+                tg_nft_id=chosen.gift.tg_nft_id,  # уникальный id из ТГ
+                name=chosen.gift.name,
+                description=chosen.gift.description,
+                image_url=chosen.gift.image_url,
+                price_ton=chosen.gift.price_ton,
+                rarity=chosen.gift.rarity,
+            )
 
         return game, chosen

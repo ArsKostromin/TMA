@@ -1,9 +1,11 @@
 import random
+import hashlib
+import secrets
 from django.db import models
 from django.conf import settings
 from decimal import Decimal
 from user.models import User
-from gifts.models import Inventory
+
 
 class Game(models.Model):
     MODE_CHOICES = [
@@ -12,20 +14,19 @@ class Game(models.Model):
         ("daily", "Ежедневный розыгрыш"),
     ]
 
-    status_choices = [
+    STATUS_CHOICES = [
         ("waiting", "Ожидание игроков"),
         ("running", "В процессе"),
         ("finished", "Завершена"),
     ]
 
     mode = models.CharField(max_length=20, choices=MODE_CHOICES, default="pvp", verbose_name="Режим")
-    status = models.CharField(max_length=20, choices=status_choices, default="waiting", verbose_name="Статус")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="waiting", verbose_name="Статус")
 
     pot_amount_ton = models.DecimalField(
         max_digits=12, decimal_places=2, default=Decimal("0.00"),
         verbose_name="Общая сумма в TON"
     )
-    pot_amount_stars = models.PositiveIntegerField(default=0, verbose_name="Сумма в Stars")
 
     hash = models.CharField(max_length=64, blank=True, null=True, verbose_name="Hash игры")
     started_at = models.DateTimeField(auto_now_add=True, verbose_name="Начало")
@@ -44,6 +45,15 @@ class Game(models.Model):
     def __str__(self):
         return f"{self.get_mode_display()} — {self.status} ({self.id})"
 
+    def save(self, *args, **kwargs):
+        if not self.hash:
+            # генерим секрет
+            secret = secrets.token_hex(32)
+            self.secret = secret
+            # кладем в hash
+            self.hash = hashlib.sha256(secret.encode()).hexdigest()
+        super().save(*args, **kwargs)
+
 
 class GamePlayer(models.Model):
     game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="players", verbose_name="Игра")
@@ -51,16 +61,34 @@ class GamePlayer(models.Model):
 
     bet_ton = models.DecimalField(
         max_digits=12, decimal_places=2, default=Decimal("0.00"),
-        verbose_name="Ставка в TON"
+        verbose_name="Ставка в TON напрямую"
     )
-    bet_stars = models.PositiveIntegerField(default=0, verbose_name="Ставка в Stars")
 
-    # Опционально: если ставили подарки
+    # Подарки
     gifts = models.ManyToManyField("gifts.Gift", blank=True, verbose_name="Подарки в ставке")
 
-    chance_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"), verbose_name="Шанс победы")
+    # Итоговая ставка в TON (подарки + TON)
+    total_bet_ton = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00"),
+        verbose_name="Итоговая ставка в TON"
+    )
+
+    chance_percent = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal("0.00"), 
+        verbose_name="Шанс победы"
+    )
 
     joined_at = models.DateTimeField(auto_now_add=True)
+
+    def recalc_total(self):
+        """Пересчитать итоговую ставку (TON + подарки)."""
+        gifts_total = self.gifts.aggregate(models.Sum("price_ton"))["price_ton__sum"] or Decimal("0.00")
+        self.total_bet_ton = self.bet_ton + gifts_total
+        return self.total_bet_ton
+
+    def save(self, *args, **kwargs):
+        self.recalc_total()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.user} в игре {self.game_id}"

@@ -1,9 +1,9 @@
-from gifts.models import Inventory
+from gifts.models import Gift
 
 class InventoryService:
     @staticmethod
     def get_user_inventory(user):
         """
-        Вернуть QuerySet инвентаря пользователя с предзагрузкой подарков
+        Вернуть QuerySet подарков пользователя
         """
-        return Inventory.objects.filter(user=user).select_related("gift")
+        return Gift.objects.filter(user=user).order_by("-created_at")
