@@ -18,7 +18,7 @@ class GamePlayerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = GamePlayer
-        fields = ["bet_ton", "bet_stars", "chance_percent", "gifts"]
+        fields = ["bet_ton", "chance_percent", "gifts"]
 
 
 class GameHistorySerializer(serializers.ModelSerializer):
@@ -29,7 +29,7 @@ class GameHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Game
         fields = [
-            "id", "mode", "status", "pot_amount_ton", "pot_amount_stars",
+            "id", "mode", "status", "pot_amount_ton",
             "started_at", "ended_at", "winner_id", "is_winner", "player_data"
         ]
 
@@ -53,7 +53,7 @@ class GamePlayerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = GamePlayer
-        fields = ["user", "bet_ton", "bet_stars", "chance_percent", "gifts"]
+        fields = ["user", "bet_ton", "chance_percent", "gifts"]
 
 
 class PublicGameHistorySerializer(serializers.ModelSerializer):
@@ -63,7 +63,7 @@ class PublicGameHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Game
         fields = [
-            "id", "mode", "status", "pot_amount_ton", "pot_amount_stars",
+            "id", "mode", "status", "pot_amount_ton",
             "started_at", "ended_at", "winner_id", "players"
         ]
 
@@ -71,7 +71,6 @@ class PublicGameHistorySerializer(serializers.ModelSerializer):
 class TopPlayerSerializer(serializers.ModelSerializer):
     wins_count = serializers.SerializerMethodField()
     total_wins_ton = serializers.SerializerMethodField()
-    total_wins_stars = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -81,7 +80,6 @@ class TopPlayerSerializer(serializers.ModelSerializer):
             "avatar_url",
             "wins_count",
             "total_wins_ton",
-            "total_wins_stars",
         ]
 
     def get_wins_count(self, obj):
@@ -90,11 +88,6 @@ class TopPlayerSerializer(serializers.ModelSerializer):
     def get_total_wins_ton(self, obj):
         return obj.games_won.filter(status="finished", mode="pvp").aggregate(
             total=Sum("pot_amount_ton")
-        )["total"] or 0
-
-    def get_total_wins_stars(self, obj):
-        return obj.games_won.filter(status="finished", mode="pvp").aggregate(
-            total=Sum("pot_amount_stars")
         )["total"] or 0
 
 
