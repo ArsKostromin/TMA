@@ -13,6 +13,7 @@ django-celery-beat>=2.5.0
 whitenoise
 Pillow
 pyjwt
+django-storages[boto3]
 channels==4.1.0
 channels-redis==4.2.0
 daphne==4.1.2

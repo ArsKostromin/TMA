@@ -1,7 +1,8 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from ..utils.telegram_auth import validate_init_data, get_user_avatar, parse_init_data_no_check
+from ..utils.telegram_auth import validate_init_data, parse_init_data_no_check
 from .auth import AuthService
+from .avatar_service import AvatarService
 
 User = get_user_model()
 
@@ -21,7 +22,7 @@ class TelegramAuthService:
         if not tg_user:
             raise ValueError("No user data in initData")
 
-        avatar_url = get_user_avatar(tg_user["id"])
+        avatar_url = AvatarService.download_and_save_avatar(tg_user["id"], settings.BOT_TOKEN)
 
         user, created = User.objects.get_or_create(
             telegram_id=tg_user["id"],
