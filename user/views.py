@@ -12,7 +12,8 @@ from .serializers import (
     RefreshTokenResponseSerializer,
     LogoutResponseSerializer,
     TelegramAuthRequestSerializer, 
-    TelegramAuthResponseSerializer
+    TelegramAuthResponseSerializer,
+    UserBalanceSerializer
 )
 
 User = get_user_model()
@@ -70,3 +71,18 @@ class LogoutView(APIView):
     )
     def post(self, request):
         return Response({"message": "Logged out"}, status=status.HTTP_200_OK)
+
+
+class UserBalanceView(APIView):
+    @extend_schema(
+        responses={200: UserBalanceSerializer},
+        summary="Получение баланса пользователя",
+        description="Возвращает текущий баланс TON и Stars для аутентифицированного пользователя."
+    )
+    def get(self, request):
+        user = request.user
+        serializer = UserBalanceSerializer({
+            'balance_ton': user.balance_ton,
+            'balance_stars': user.balance_stars
+        })
+        return Response(serializer.data, status=status.HTTP_200_OK)

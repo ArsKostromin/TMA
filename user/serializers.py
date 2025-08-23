@@ -23,3 +23,8 @@ class RefreshTokenResponseSerializer(serializers.Serializer):
 
 class LogoutResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
+
+
+class UserBalanceSerializer(serializers.Serializer):
+    balance_ton = serializers.DecimalField(max_digits=18, decimal_places=6)
+    balance_stars = serializers.IntegerField()
