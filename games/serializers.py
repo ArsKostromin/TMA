@@ -151,6 +151,7 @@ class LastWinnerSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source="user.id")
     username = serializers.CharField(source="user.username")
     avatar_url = serializers.CharField(source="user.avatar_url")
+    win_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = GamePlayer
@@ -160,4 +161,14 @@ class LastWinnerSerializer(serializers.ModelSerializer):
             "avatar_url",
             "total_bet_ton",
             "chance_percent",
+            "win_amount",
         ]
+
+    def get_win_amount(self, obj):
+        """Получить выигрыш игрока из игры"""
+        game = obj.game
+        if game and game.status == "finished":
+            # Выигрыш = общая сумма в банке минус комиссия
+            commission_amount = game.pot_amount_ton * (game.commission_percent / Decimal("100"))
+            return str(game.pot_amount_ton - commission_amount)
+        return "0"

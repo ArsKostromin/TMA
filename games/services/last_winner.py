@@ -21,13 +21,15 @@ def get_last_pvp_winner():
 
     winner_gp = (
         GamePlayer.objects
-        .select_related("user")
+        .select_related("user", "game")
         .only(
             "total_bet_ton",
             "chance_percent",
             "user__id",
             "user__username",
-            "user__avatar_url"
+            "user__avatar_url",
+            "game__pot_amount_ton",
+            "game__commission_percent"
         )
         .filter(game=last_game, user=last_game.winner)
         .first()
