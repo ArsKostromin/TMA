@@ -11,6 +11,7 @@ from .serializers import (
     SpinGameHistorySerializer,
     SpinPlayRequestSerializer,
     SpinPlayResponseSerializer,
+    LastWinnerSerializer,
 )
 from django.db.models import Sum, Count, Q
 from rest_framework.generics import ListAPIView
@@ -22,6 +23,8 @@ from .services.top_players import get_top_players
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 from drf_spectacular.utils import extend_schema
+from .services.last_winner import get_last_pvp_winner
+
 
 User = get_user_model()
 
@@ -133,3 +136,16 @@ class SpinGameHistoryView(ListAPIView):
             .select_related("gift_won")
             .order_by("-played_at")
         )
+
+class LastPvpWinnerView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        last_game, winner_gp = get_last_pvp_winner()
+
+        if not last_game or not winner_gp:
+            return Response({"detail": "Нет завершённых игр"}, status=404)
+
+        data = LastWinnerSerializer(winner_gp).data
+        data["game_id"] = last_game.id
+        return Response(data)

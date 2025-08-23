@@ -145,3 +145,19 @@ class SpinPlayResponseSerializer(serializers.Serializer):
     result_sector = serializers.CharField()
     gift_won = serializers.CharField(allow_null=True)
     balances = serializers.DictField(child=serializers.CharField())
+
+
+class LastWinnerSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source="user.id")
+    username = serializers.CharField(source="user.username")
+    avatar_url = serializers.CharField(source="user.avatar_url")
+
+    class Meta:
+        model = GamePlayer
+        fields = [
+            "id",
+            "username",
+            "avatar_url",
+            "total_bet_ton",
+            "chance_percent",
+        ]

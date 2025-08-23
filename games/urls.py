@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import GameHistoryView, TopPlayersAPIView, PvPGameHistoryAPIView, SpinPlayView, SpinWheelView, SpinGameHistoryView
+from .views import GameHistoryView, TopPlayersAPIView, PvPGameHistoryAPIView, SpinPlayView, SpinWheelView, SpinGameHistoryView, LastPvpWinnerView
 
 urlpatterns = [
     # История игр текущего пользователя (PVP, Daily и пр.) → только авторизованный
@@ -19,4 +19,7 @@ urlpatterns = [
     
     #история спин игр
     path("spin/history/", SpinGameHistoryView.as_view(), name="spin-history"),
+
+    #послений победитель
+    path("last-winner", LastPvpWinnerView.as_view(), name="spin-history"),
 ]
