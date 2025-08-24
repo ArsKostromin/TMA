@@ -34,6 +34,12 @@ ALLOWED_HOSTS = [
     "localhost",
     "nft.teststudiaorbita.ru",
 ]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://nft.teststudiaorbita.ru",
+    "https://www.nft.teststudiaorbita.ru",  # если есть www
+]
+
  
 # Application definition
 
@@ -234,3 +240,4 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,  # чтобы схема не дублировалась в /docs
 }
+
