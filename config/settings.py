@@ -28,8 +28,12 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["212.8.228.78", "127.0.0.1", "localhost",]
-
+ALLOWED_HOSTS = [
+    "212.8.228.78",
+    "127.0.0.1",
+    "localhost",
+    "nft.teststudiaorbita.ru",
+]
  
 # Application definition
 
