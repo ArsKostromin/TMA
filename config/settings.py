@@ -32,12 +32,12 @@ ALLOWED_HOSTS = [
     "212.8.228.78",
     "127.0.0.1",
     "localhost",
-    "teststudiaorbita.ru",
+    "nft.teststudiaorbita.ru",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://teststudiaorbita.ru",
-    "https://www.teststudiaorbita.ru",  # если есть www
+    "https://nft.teststudiaorbita.ru",
+    "https://www.nft.teststudiaorbita.ru",  # если есть www
 ]
 
  
