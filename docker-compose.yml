@@ -65,7 +65,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /etc/letsencrypt:/etc/letsencrypt
       - ./certbot:/var/www/certbot
       - ./staticfiles:/app/static  # для ACME challenge, если нужно будет обновлять сертификат
     depends_on:
