@@ -3,10 +3,10 @@ from .views import GameHistoryView, TopPlayersAPIView, PvPGameHistoryAPIView, Sp
 
 urlpatterns = [
     # История игр текущего пользователя (PVP, Daily и пр.) → только авторизованный
-    path("history", GameHistoryView.as_view(), name="game-history"),
+    path("history/", GameHistoryView.as_view(), name="game-history"),
 
     # Топ игроков по выигрышам в PVP → общедоступно
-    path("top", TopPlayersAPIView.as_view(), name="top-players"),
+    path("top/", TopPlayersAPIView.as_view(), name="top-players"),
 
     # Публичная история последних PVP игр → все могут смотреть, даже гости
     path("pvp-history", PvPGameHistoryAPIView.as_view(), name="pvp-history"),
@@ -21,5 +21,5 @@ urlpatterns = [
     path("spin/history/", SpinGameHistoryView.as_view(), name="spin-history"),
 
     #послений победитель
-    path("last-winner", LastPvpWinnerView.as_view(), name="spin-history"),
+    path("last-winner/", LastPvpWinnerView.as_view(), name="spin-history"),
 ]
