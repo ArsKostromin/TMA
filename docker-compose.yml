@@ -66,6 +66,7 @@ services:
       - /etc/letsencrypt:/etc/letsencrypt   # теперь read/write
       - ./certbot:/var/www/certbot           # для webroot challenge
       - ./staticfiles:/app/static
+      - ./public_html:/var/www/unity:ro
     depends_on:
       - web
     networks:
