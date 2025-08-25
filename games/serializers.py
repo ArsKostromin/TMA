@@ -86,9 +86,10 @@ class TopPlayerSerializer(serializers.ModelSerializer):
         return obj.games_won.filter(status="finished", mode="pvp").count()
 
     def get_total_wins_ton(self, obj):
-        return obj.games_won.filter(status="finished", mode="pvp").aggregate(
+        total = obj.games_won.filter(status="finished", mode="pvp").aggregate(
             total=Sum("pot_amount_ton")
-        )["total"] or 0
+        )["total"]
+        return total or 0
 
 
 class GiftSerializer(serializers.ModelSerializer):

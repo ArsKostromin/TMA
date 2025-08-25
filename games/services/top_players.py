@@ -5,7 +5,8 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
-def get_top_players(limit=20):
+def get_top_player():
+    """Возвращает одного лучшего игрока по общему выигрышу в TON"""
     return (
         User.objects.annotate(
             total_wins_ton=Sum(
@@ -19,5 +20,6 @@ def get_top_players(limit=20):
             ),
         )
         .filter(wins_count__gt=0)
-        .order_by("-total_wins_ton")[:limit]
+        .order_by("-total_wins_ton")
+        .first()
     )

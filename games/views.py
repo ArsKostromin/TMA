@@ -19,7 +19,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import status
 from django.db import transaction
 from games.services.spin_service import SpinService
-from .services.top_players import get_top_players 
+from .services.top_players import get_top_player 
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 from drf_spectacular.utils import extend_schema
@@ -42,12 +42,21 @@ class GameHistoryView(ListAPIView):
         )
 
 
-class TopPlayersAPIView(ListAPIView):
+class TopPlayersAPIView(APIView):
     permission_classes = [AllowAny]
-    serializer_class = TopPlayerSerializer  
-
-    def get_queryset(self):
-        return get_top_players()
+    
+    @extend_schema(
+        responses={200: TopPlayerSerializer},
+        summary="Получение лучшего игрока",
+        description="Возвращает игрока с наибольшим общим выигрышем в TON"
+    )
+    def get(self, request):
+        top_player = get_top_player()
+        if not top_player:
+            return Response({"detail": "Нет игроков с победами"}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = TopPlayerSerializer(top_player)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class PvPGameHistoryAPIView(ListAPIView):
