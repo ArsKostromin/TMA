@@ -241,3 +241,4 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,  # чтобы схема не дублировалась в /docs
 }
 
+APPEND_SLASH = True
