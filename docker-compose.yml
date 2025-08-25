@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   web:
     build:
@@ -66,8 +68,7 @@ services:
       - /etc/letsencrypt:/etc/letsencrypt
       - ./certbot:/var/www/certbot
       - ./staticfiles:/app/static
-      - ./public_html:/var/www/unity:ro  
-      - /root/unity_build:/var/www/unity:ro # <--- Unity билд
+      - /root/unity_build:/var/www/unity:ro   # Unity билд
     depends_on:
       - web
     networks:
