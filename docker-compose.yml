@@ -69,7 +69,7 @@ services:
       - ./certbot:/var/www/certbot
       - ./staticfiles:/app/staticfiles   # Django статика
       - ./media:/app/media               # Django медиа
-      - /root/unity_build:/var/www/unity:ro   # Unity билд
+      - /root/unity_build:/var/www/unity   # Unity билд
     depends_on:
       - web
     networks:

@@ -241,3 +241,24 @@ SPECTACULAR_SETTINGS = {
 }
 
 APPEND_SLASH = True
+
+# TON API настройки
+TON_API_BASE_URL = "https://toncenter.com/api/v2"
+TON_MASTER_WALLET = "UQDPdsD2e_j6T-CAFNCmcC8fJvQixciaaUgJdK8Xz23taTCV"
+USDT_CONTRACT_ADDRESS = "EQB-MPwrd1G6WKNkLz_VnVnY_M9ZR5o0vqa5T8l4bFJXwnaA"
+
+# Celery Beat расписание для TON транзакций
+CELERY_BEAT_SCHEDULE = {
+    'check-ton-transactions': {
+        'task': 'transactions.tasks.check_ton_transactions',
+        'schedule': 60.0,  # каждые 60 секунд
+    },
+    'update-wallet-balances': {
+        'task': 'transactions.tasks.update_wallet_balances',
+        'schedule': 300.0,  # каждые 5 минут
+    },
+    'cleanup-old-transactions': {
+        'task': 'transactions.tasks.cleanup_old_transactions',
+        'schedule': 86400.0,  # раз в день
+    },
+}

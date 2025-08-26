@@ -14,6 +14,7 @@ urlpatterns = [
     path("user/", include("user.urls")),
     path("games/", include("games.urls")),
     path("Inventory/", include("gifts.urls")),
+    path("api/transactions/", include("transactions.urls")),
 
     # Схема и Swagger/Redoc
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
