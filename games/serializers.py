@@ -224,9 +224,11 @@ class PublicPvpGameSerializer(serializers.ModelSerializer):
     def get_win_amount_ton(self, obj):
         # Выигрыш = банк минус комиссия
         if obj.pot_amount_ton is None:
-            return "0"
+            return "0.00"
         commission_amount = obj.pot_amount_ton * (obj.commission_percent / Decimal("100"))
-        return str(obj.pot_amount_ton - commission_amount)
+        win_amount = obj.pot_amount_ton - commission_amount
+        # Форматируем до 2 знаков после запятой
+        return f"{win_amount:.2f}"
 
     def get_winner_chance_percent(self, obj):
         gp = self._get_winner_gp(obj)

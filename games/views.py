@@ -64,10 +64,6 @@ class PvPGameHistoryAPIView(ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = PublicPvpGameSerializer
 
-    # Пагинация для бесконечной прокрутки: ?limit=10&offset=20
-    from rest_framework.pagination import LimitOffsetPagination  # local import to avoid top-level changes
-    pagination_class = LimitOffsetPagination
-
     def get_queryset(self):
         return (
             Game.objects
