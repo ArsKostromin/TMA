@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import GameHistoryView, TopPlayersAPIView, PvPGameHistoryAPIView, SpinPlayView, SpinWheelView, SpinGameHistoryView, LastPvpWinnerView
+from .views import GameHistoryView, TopPlayersAPIView, PvPGameHistoryAPIView, PvpGameDetailView, SpinPlayView, SpinWheelView, SpinGameHistoryView, LastPvpWinnerView
 
 urlpatterns = [
     # История игр текущего пользователя (PVP, Daily и пр.) → только авторизованный
@@ -10,6 +10,9 @@ urlpatterns = [
 
     # Публичная история последних PVP игр → все могут смотреть, даже гости
     path("pvp-history", PvPGameHistoryAPIView.as_view(), name="pvp-history"),
+
+    # Детальная информация о PVP игре по ID → все могут смотреть
+    path("pvp-game/<int:game_id>/", PvpGameDetailView.as_view(), name="pvp-game-detail"),
 
     # Запуск рекламного Spin (ставка Stars/Ton, результат и приз) → только авторизованный
     path("spin/play/", SpinPlayView.as_view(), name="spin-play"),

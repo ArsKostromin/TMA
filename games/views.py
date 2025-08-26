@@ -7,6 +7,7 @@ from .serializers import (
     GameHistorySerializer,
     PublicGameHistorySerializer,
     PublicPvpGameSerializer,
+    PvpGameDetailSerializer,
     TopPlayerSerializer,
     SpinWheelSectorSerializer,
     SpinGameHistorySerializer,
@@ -44,7 +45,7 @@ class GameHistoryView(ListAPIView):
 
 
 class TopPlayersAPIView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     @extend_schema(
         responses={200: TopPlayerSerializer},
@@ -61,7 +62,7 @@ class TopPlayersAPIView(APIView):
 
 
 class PvPGameHistoryAPIView(ListAPIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     serializer_class = PublicPvpGameSerializer
 
     def get_queryset(self):
@@ -72,6 +73,29 @@ class PvPGameHistoryAPIView(ListAPIView):
             .prefetch_related("players__gifts", "players")
             .order_by("-started_at")
         )
+
+
+class PvpGameDetailView(APIView):
+    """Детальная информация о PVP игре по ID."""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, game_id):
+        try:
+            game = (
+                Game.objects
+                .filter(id=game_id, mode="pvp", status="finished")
+                .select_related("winner")
+                .prefetch_related("players__gifts", "players")
+                .get()
+            )
+        except Game.DoesNotExist:
+            return Response(
+                {"detail": "Игра не найдена"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        serializer = PvpGameDetailSerializer(game)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class SpinPlayView(APIView):
