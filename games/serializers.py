@@ -173,3 +173,63 @@ class LastWinnerSerializer(serializers.ModelSerializer):
             commission_amount = game.pot_amount_ton * (game.commission_percent / Decimal("100"))
             return str(game.pot_amount_ton - commission_amount)
         return "0"
+
+
+class PublicPvpGameSerializer(serializers.ModelSerializer):
+    """Публичная карточка PVP игры с данными победителя и итогами."""
+
+    hash = serializers.CharField(read_only=True)
+    ended_at = serializers.DateTimeField(read_only=True)
+
+    winner = serializers.SerializerMethodField()
+    winner_gift_icons = serializers.SerializerMethodField()
+    win_amount_ton = serializers.SerializerMethodField()
+    winner_chance_percent = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Game
+        fields = [
+            "id",
+            "hash",
+            "ended_at",
+            "winner",
+            "winner_gift_icons",
+            "win_amount_ton",
+            "winner_chance_percent",
+        ]
+
+    def _get_winner_gp(self, obj):
+        """Вернуть объект GamePlayer победителя для игры."""
+        if not obj.winner_id:
+            return None
+        return obj.players.filter(user_id=obj.winner_id).first()
+
+    def get_winner(self, obj):
+        user = obj.winner
+        if not user:
+            return None
+        return {
+            "id": user.id,
+            "username": getattr(user, "username", None),
+            "avatar_url": getattr(user, "avatar_url", None),
+        }
+
+    def get_winner_gift_icons(self, obj):
+        gp = self._get_winner_gp(obj)
+        if not gp:
+            return []
+        # показываем только иконки (image_url) подарков победителя
+        return list(gp.gifts.values_list("image_url", flat=True))
+
+    def get_win_amount_ton(self, obj):
+        # Выигрыш = банк минус комиссия
+        if obj.pot_amount_ton is None:
+            return "0"
+        commission_amount = obj.pot_amount_ton * (obj.commission_percent / Decimal("100"))
+        return str(obj.pot_amount_ton - commission_amount)
+
+    def get_winner_chance_percent(self, obj):
+        gp = self._get_winner_gp(obj)
+        if not gp or gp.chance_percent is None:
+            return "0"
+        return str(gp.chance_percent)

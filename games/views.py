@@ -6,6 +6,7 @@ from .models import Game, GamePlayer, SpinGame, SpinWheelSector
 from .serializers import (
     GameHistorySerializer,
     PublicGameHistorySerializer,
+    PublicPvpGameSerializer,
     TopPlayerSerializer,
     SpinWheelSectorSerializer,
     SpinGameHistorySerializer,
@@ -60,12 +61,20 @@ class TopPlayersAPIView(APIView):
 
 
 class PvPGameHistoryAPIView(ListAPIView):
-    serializer_class = PublicGameHistorySerializer
+    permission_classes = [AllowAny]
+    serializer_class = PublicPvpGameSerializer
+
+    # Пагинация для бесконечной прокрутки: ?limit=10&offset=20
+    from rest_framework.pagination import LimitOffsetPagination  # local import to avoid top-level changes
+    pagination_class = LimitOffsetPagination
 
     def get_queryset(self):
         return (
-            Game.objects.filter(mode="pvp", status="finished")
-            .order_by("-ended_at")[:10]
+            Game.objects
+            .filter(mode="pvp", status="finished")
+            .select_related("winner")
+            .prefetch_related("players__gifts", "players")
+            .order_by("-ended_at")
         )
 
 
