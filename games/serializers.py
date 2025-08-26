@@ -179,7 +179,7 @@ class PublicPvpGameSerializer(serializers.ModelSerializer):
     """Публичная карточка PVP игры с данными победителя и итогами."""
 
     hash = serializers.CharField(read_only=True)
-    ended_at = serializers.DateTimeField(read_only=True)
+    started_at = serializers.DateTimeField(read_only=True)
 
     winner = serializers.SerializerMethodField()
     winner_gift_icons = serializers.SerializerMethodField()
@@ -191,7 +191,7 @@ class PublicPvpGameSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "hash",
-            "ended_at",
+            "started_at",
             "winner",
             "winner_gift_icons",
             "win_amount_ton",

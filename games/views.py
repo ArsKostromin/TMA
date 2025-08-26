@@ -74,7 +74,7 @@ class PvPGameHistoryAPIView(ListAPIView):
             .filter(mode="pvp", status="finished")
             .select_related("winner")
             .prefetch_related("players__gifts", "players")
-            .order_by("-ended_at")
+            .order_by("-started_at")
         )
 
 
