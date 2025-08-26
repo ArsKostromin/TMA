@@ -176,7 +176,7 @@ class SpinGameHistoryView(ListAPIView):
         )
 
 class LastPvpWinnerView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         last_game, winner_gp = get_last_pvp_winner()
