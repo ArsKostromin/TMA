@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'core',
     'gifts',
     'transactions',
+    'raffle'
 ]
 
 MIDDLEWARE = [
