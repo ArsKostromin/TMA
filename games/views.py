@@ -24,7 +24,7 @@ from games.services.spin_service import SpinService
 from .services.top_players import get_top_player 
 from django.core.exceptions import ValidationError
 from decimal import Decimal
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, , OpenApiResponse
 from .services.last_winner import get_last_pvp_winner
 
 
