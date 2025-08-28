@@ -26,6 +26,17 @@ from django.core.exceptions import ValidationError
 from decimal import Decimal
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 from .services.last_winner import get_last_pvp_winner
+from .api_examples import (
+    GAME_HISTORY_EXAMPLE,
+    TOP_PLAYER_EXAMPLE,
+    PVP_GAME_HISTORY_EXAMPLE,
+    PVP_GAME_DETAIL_EXAMPLE,
+    SPIN_PLAY_REQUEST_EXAMPLE,
+    SPIN_PLAY_RESPONSE_EXAMPLE,
+    SPIN_WHEEL_EXAMPLE,
+    SPIN_GAME_HISTORY_EXAMPLE,
+    LAST_WINNER_EXAMPLE,
+)
 
 
 User = get_user_model()
@@ -33,6 +44,26 @@ User = get_user_model()
 class GameHistoryView(ListAPIView):
     serializer_class = GameHistorySerializer
     permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="История игр пользователя",
+        description="Возвращает последние 20 игр текущего пользователя с деталями ставок и подарков",
+        responses={
+            200: OpenApiResponse(
+                response=GameHistorySerializer,
+                description="Успешный ответ",
+                examples=[
+                    OpenApiExample(
+                        name="Пример ответа",
+                        value=GAME_HISTORY_EXAMPLE
+                    )
+                ],
+            ),
+        },
+        tags=["Games"],
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
         user = self.request.user
@@ -48,9 +79,22 @@ class TopPlayersAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
     @extend_schema(
-        responses={200: TopPlayerSerializer},
-        summary="Получение лучшего игрока",
-        description="Возвращает игрока с наибольшим общим выигрышем в TON"
+        summary="Лучший игрок",
+        description="Возвращает игрока с наибольшим общим выигрышем в TON",
+        responses={
+            200: OpenApiResponse(
+                response=TopPlayerSerializer,
+                description="Успешный ответ",
+                examples=[
+                    OpenApiExample(
+                        name="Пример ответа",
+                        value=TOP_PLAYER_EXAMPLE
+                    )
+                ],
+            ),
+            404: OpenApiResponse(description="Нет игроков с победами"),
+        },
+        tags=["Games"],
     )
     def get(self, request):
         top_player = get_top_player()
@@ -64,6 +108,26 @@ class TopPlayersAPIView(APIView):
 class PvPGameHistoryAPIView(ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = PublicPvpGameSerializer
+    
+    @extend_schema(
+        summary="История PVP игр",
+        description="Возвращает список всех завершённых PVP игр с данными победителей и выигрышей",
+        responses={
+            200: OpenApiResponse(
+                response=PublicPvpGameSerializer,
+                description="Успешный ответ",
+                examples=[
+                    OpenApiExample(
+                        name="Пример ответа",
+                        value=PVP_GAME_HISTORY_EXAMPLE
+                    )
+                ],
+            ),
+        },
+        tags=["Games"],
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
         return (
@@ -81,9 +145,18 @@ class PvpGameDetailView(APIView):
     
     @extend_schema(
         summary="Детали PVP-игры",
-        description="Возвращает данные об игре по ID (только pvp и только finished).",
+        description="Возвращает детальную информацию о PVP игре по ID (только завершённые игры)",
         responses={
-            200: OpenApiResponse(response=PvpGameDetailSerializer, description="Успешный ответ"),
+            200: OpenApiResponse(
+                response=PvpGameDetailSerializer,
+                description="Успешный ответ",
+                examples=[
+                    OpenApiExample(
+                        name="Пример ответа",
+                        value=PVP_GAME_DETAIL_EXAMPLE
+                    )
+                ],
+            ),
             404: OpenApiResponse(description="Игра не найдена"),
         },
         tags=["Games"],
@@ -112,8 +185,23 @@ class SpinPlayView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
+        summary="Игра в спин",
+        description="Запускает игру в спин с указанными ставками в Stars и TON",
         request=SpinPlayRequestSerializer,
-        responses=SpinPlayResponseSerializer
+        responses={
+            200: OpenApiResponse(
+                response=SpinPlayResponseSerializer,
+                description="Успешный ответ",
+                examples=[
+                    OpenApiExample(
+                        name="Пример ответа",
+                        value=SPIN_PLAY_RESPONSE_EXAMPLE
+                    )
+                ],
+            ),
+            400: OpenApiResponse(description="Ошибка валидации"),
+        },
+        tags=["Games"],
     )
     def post(self, request):
         serializer = SpinPlayRequestSerializer(data=request.data)
@@ -163,8 +251,21 @@ class SpinWheelView(APIView):
     """
     
     @extend_schema(
-        summary="Get all spin wheel sectors",
-        responses={200: SpinWheelSectorSerializer(many=True)}
+        summary="Сектора колеса спина",
+        description="Возвращает все сектора колеса спина с подарками и вероятностями",
+        responses={
+            200: OpenApiResponse(
+                response=SpinWheelSectorSerializer(many=True),
+                description="Успешный ответ",
+                examples=[
+                    OpenApiExample(
+                        name="Пример ответа",
+                        value=SPIN_WHEEL_EXAMPLE
+                    )
+                ],
+            ),
+        },
+        tags=["Games"],
     )
     def get(self, request):
         # Берём все сектора, сортируя по индексу
@@ -176,6 +277,26 @@ class SpinWheelView(APIView):
 class SpinGameHistoryView(ListAPIView):
     serializer_class = SpinGameHistorySerializer
     permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="История игр в спин",
+        description="Возвращает историю всех игр в спин для текущего пользователя",
+        responses={
+            200: OpenApiResponse(
+                response=SpinGameHistorySerializer,
+                description="Успешный ответ",
+                examples=[
+                    OpenApiExample(
+                        name="Пример ответа",
+                        value=SPIN_GAME_HISTORY_EXAMPLE
+                    )
+                ],
+            ),
+        },
+        tags=["Games"],
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
         return (
@@ -195,20 +316,12 @@ class LastPvpWinnerView(APIView):
             200: OpenApiResponse(
                 response=LastWinnerSerializer,
                 description="Успешный ответ",
-                examples=[
-                    OpenApiExample(
-                        name="Пример ответа",
-                        value={
-                            "id": 3,
-                            "username": "GameGaKuSeI",
-                            "avatar_url": "https://example.com/avatar.png",
-                            "total_bet_ton": "15.00",
-                            "chance_percent": "50.0",
-                            "win_amount": "12.75",
-                            "game_id": 4
-                        }
-                    )
-                ],
+                        examples=[
+            OpenApiExample(
+                name="Пример ответа",
+                value=LAST_WINNER_EXAMPLE
+            )
+        ],
             ),
             404: OpenApiResponse(description="Нет завершённых игр"),
         },
