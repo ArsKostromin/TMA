@@ -1,36 +1,30 @@
-from django.db.models import Count
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import extend_schema, OpenApiResponse
+from rest_framework.generics import RetrieveAPIView
 
-from .models import DailyRaffle, DailyRaffleParticipant
 from .serializers import CurrentRaffleSerializer
+from .services import get_current_raffle_with_stats
 
 
-class CurrentRaffleView(APIView):
+class CurrentRaffleView(RetrieveAPIView):
     permission_classes = [IsAuthenticated]
-    def get(self, request):
-        raffle = (
-            DailyRaffle.objects.filter(status="active")
-            .order_by("-started_at")
-            .first()
-        )
+    serializer_class = CurrentRaffleSerializer
 
-        if not raffle:
-            return Response({"detail": "Нет активного розыгрыша"}, status=status.HTTP_404_NOT_FOUND)
+    def get_object(self):
+        raffle = get_current_raffle_with_stats(self.request.user)
+        if raffle is None:
+            from rest_framework.exceptions import NotFound
+            raise NotFound("Нет активного розыгрыша")
+        return raffle
 
-        participants_count = raffle.participants.count()
-
-        user_participates = False
-        if request.user and request.user.is_authenticated:
-            user_participates = DailyRaffleParticipant.objects.filter(
-                raffle=raffle, user=request.user
-            ).exists()
-
-        serializer = CurrentRaffleSerializer.from_instance(
-            raffle,
-            user_participates=user_participates,
-            participants_count=participants_count,
-        )
-        return Response(serializer.data)
+    @extend_schema(
+        summary="Текущий активный розыгрыш",
+        description="Возвращает данные об активном розыгрыше и статус участия текущего пользователя.",
+        responses={
+            200: OpenApiResponse(response=CurrentRaffleSerializer, description="Успешный ответ"),
+            404: OpenApiResponse(description="Нет активного розыгрыша"),
+        },
+        tags=["Raffle"],
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)

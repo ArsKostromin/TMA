@@ -1,7 +1,5 @@
 from rest_framework import serializers
 
-from .models import DailyRaffle
-
 
 class GiftShortSerializer(serializers.Serializer):
     tg_nft_id = serializers.CharField(allow_null=True)
@@ -21,29 +19,34 @@ class CurrentRaffleSerializer(serializers.Serializer):
     ends_at = serializers.DateTimeField(allow_null=True)
     user_participates = serializers.BooleanField()
 
-    @staticmethod
-    def from_instance(raffle: DailyRaffle, *, user_participates: bool, participants_count: int):
-        gift = raffle.prize
+    def to_representation(self, instance):
+        gift = getattr(instance, "prize", None)
         gift_data = None
         if gift is not None:
             gift_data = {
-                "tg_nft_id": gift.tg_nft_id,
-                "name": gift.name,
-                "rarity": gift.rarity,
-                "image_url": gift.image_url,
-                "price_ton": gift.price_ton,
-                "backdrop": gift.backdrop,
-                "symbol": gift.symbol,
+                "tg_nft_id": getattr(gift, "tg_nft_id", None),
+                "name": getattr(gift, "name", None),
+                "rarity": getattr(gift, "rarity", None),
+                "image_url": getattr(gift, "image_url", None),
+                "price_ton": getattr(gift, "price_ton", None),
+                "backdrop": getattr(gift, "backdrop", None),
+                "symbol": getattr(gift, "symbol", None),
             }
 
-        data = {
-            "status": raffle.status,
+        participants_count = getattr(instance, "participants_count", None)
+        if participants_count is None:
+            # fallback, если не пришла аннотация (не должно происходить)
+            participants_count = instance.participants.count()
+
+        user_participates = getattr(instance, "user_participates", False)
+
+        return {
+            "status": instance.status,
             "gift": gift_data,
             "participants_count": int(participants_count),
-            "started_at": raffle.started_at,
-            "ends_at": raffle.ends_at,
+            "started_at": instance.started_at,
+            "ends_at": instance.ends_at,
             "user_participates": bool(user_participates),
         }
-        return CurrentRaffleSerializer(data)
 
 
