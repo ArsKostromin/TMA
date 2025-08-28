@@ -24,7 +24,7 @@ from games.services.spin_service import SpinService
 from .services.top_players import get_top_player 
 from django.core.exceptions import ValidationError
 from decimal import Decimal
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 from .services.last_winner import get_last_pvp_winner
 
 
@@ -187,7 +187,33 @@ class SpinGameHistoryView(ListAPIView):
 
 class LastPvpWinnerView(APIView):
     permission_classes = [IsAuthenticated]
-
+    
+    @extend_schema(
+        summary="Последний победитель PVP игры",
+        description="Возвращает информацию о последнем победителе PVP игры",
+        responses={
+            200: OpenApiResponse(
+                response=LastWinnerSerializer,
+                description="Успешный ответ",
+                examples=[
+                    OpenApiExample(
+                        name="Пример ответа",
+                        value={
+                            "id": 3,
+                            "username": "GameGaKuSeI",
+                            "avatar_url": "https://example.com/avatar.png",
+                            "total_bet_ton": "15.00",
+                            "chance_percent": "50.0",
+                            "win_amount": "12.75",
+                            "game_id": 4
+                        }
+                    )
+                ],
+            ),
+            404: OpenApiResponse(description="Нет завершённых игр"),
+        },
+        tags=["Games"],
+    )
     def get(self, request):
         last_game, winner_gp = get_last_pvp_winner()
 
