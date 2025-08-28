@@ -138,7 +138,6 @@ class GameService:
                         "id": gift.id,
                         "name": gift.name,
                         "price_ton": str(gift.price_ton),
-                        "rarity": gift.rarity,
                         "image_url": gift.image_url,
                     }
                     for gift in p.gifts.all()
@@ -231,17 +230,24 @@ class GameService:
             game.save(update_fields=["status", "pot_amount_ton", "winner"])
 
         return {
-            "status": "finished",
-            "winner": winner.user.username,
-            # Возвращаем реальный TON-пот без учёта подарков
-            "pot": float(total_ton_decimal),
-            "players": [
+            "id": game.id,
+            "hash": game.hash,
+            "started_at": game.started_at,
+            "ended_at": game.ended_at,
+            "winner": {
+                "id": winner.user.id,
+                "username": getattr(winner.user, "username", None),
+                "avatar_url": getattr(winner.user, "avatar_url", None),
+            },
+            "winner_gifts": [
                 {
-                    "username": p.user.username,
-                    "bet": float(p.total_bet_ton),
-                    "chance": round((float(p.total_bet_ton) / total_equiv) * 100, 2) if total_equiv > 0 else 0,
-                    "final_balance": float(p.user.balance_ton)
+                    "id": gift.id,
+                    "name": gift.name,
+                    "image_url": gift.image_url,
+                    "price_ton": str(gift.price_ton),
                 }
-                for p in players
-            ]
+                for gift in winner.gifts.all()
+            ],
+            "win_amount_ton": f"{(total_equiv_decimal * (1 - game.commission_percent / Decimal('100'))):.2f}",
+            "winner_chance_percent": str(winner.chance_percent) if winner.chance_percent else "0",
         }

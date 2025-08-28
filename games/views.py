@@ -79,6 +79,16 @@ class PvpGameDetailView(APIView):
     """Детальная информация о PVP игре по ID."""
     permission_classes = [IsAuthenticated]
     
+    @extend_schema(
+        summary="Детали PVP-игры",
+        description="Возвращает данные об игре по ID (только pvp и только finished).",
+        responses={
+            200: OpenApiResponse(response=PvpGameDetailSerializer, description="Успешный ответ"),
+            404: OpenApiResponse(description="Игра не найдена"),
+        },
+        tags=["Games"],
+    )
+
     def get(self, request, game_id):
         try:
             game = (
