@@ -23,6 +23,36 @@ services:
       context: .
     container_name: SG-celery
     command: celery -A config worker --loglevel=info
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME | grep -q 'pong' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - web
+      - redis
+      - postgres
+    networks:
+      - SG-network
+
+  celery_beat:
+    build:
+      context: .
+    container_name: SG-celery-beat
+    command: celery -A config beat --loglevel=info
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'celery beat' > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
     volumes:
       - .:/app
     env_file:

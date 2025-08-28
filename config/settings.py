@@ -264,4 +264,8 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'transactions.tasks.cleanup_old_transactions',
         'schedule': 86400.0,  # раз в день
     },
+    'process-daily-raffle': {
+        'task': 'raffle.tasks.process_daily_raffle',
+        'schedule': 86400.0,  # раз в сутки
+    },
 }
