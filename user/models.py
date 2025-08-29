@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.utils.translation import gettext_lazy as _
+from django.conf import settings
 from decimal import Decimal
 
 
@@ -79,3 +80,9 @@ class User(AbstractBaseUser, PermissionsMixin):
             raise ValueError("Недостаточно Stars")
         self.balance_stars -= int(amount)
         self.save(update_fields=["balance_stars"])
+
+    def get_avatar_url(self):
+        """Возвращает аватарку пользователя или аватарку по умолчанию"""
+        if self.avatar_url:
+            return self.avatar_url
+        return getattr(settings, 'DEFAULT_AVATAR_URL', "https://teststudiaorbita.ru/media/avatars/diamond.png")

@@ -14,6 +14,11 @@ logger = logging.getLogger(__name__)
 
 class AvatarService:
     @staticmethod
+    def get_default_avatar_url() -> str:
+        """Возвращает URL аватарки по умолчанию"""
+        return getattr(settings, 'DEFAULT_AVATAR_URL', "https://teststudiaorbita.ru/media/avatars/diamond.png")
+
+    @staticmethod
     def download_and_save_avatar(telegram_user_id: int, bot_token: str) -> str | None:
         """
         Скачивает аватарку пользователя из Telegram и сохраняет локально или на S3.

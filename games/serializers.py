@@ -152,7 +152,7 @@ class SpinPlayResponseSerializer(serializers.Serializer):
 class LastWinnerSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source="user.id")
     username = serializers.CharField(source="user.username")
-    avatar_url = serializers.CharField(source="user.avatar_url")
+    avatar_url = serializers.SerializerMethodField()
     win_amount = serializers.SerializerMethodField()
 
     class Meta:
@@ -165,6 +165,16 @@ class LastWinnerSerializer(serializers.ModelSerializer):
             "chance_percent",
             "win_amount",
         ]
+
+    def get_avatar_url(self, obj):
+        """Возвращает аватарку пользователя или аватарку по умолчанию"""
+        user = obj.user
+        if user and hasattr(user, 'get_avatar_url'):
+            return user.get_avatar_url()
+        elif user and user.avatar_url:
+            return user.avatar_url
+        from django.conf import settings
+        return getattr(settings, 'DEFAULT_AVATAR_URL', "https://teststudiaorbita.ru/media/avatars/diamond.png")
 
     def get_win_amount(self, obj):
         """Получить выигрыш игрока из игры"""
@@ -299,7 +309,7 @@ class PvpGameDetailSerializer(serializers.ModelSerializer):
         return {
             "id": user.id,
             "username": getattr(user, "username", None),
-            "avatar_url": getattr(user, "avatar_url", None),
+            "avatar_url": user.get_avatar_url() if hasattr(user, 'get_avatar_url') else getattr(user, "avatar_url", None),
         }
     
     def get_winner_gifts(self, obj):

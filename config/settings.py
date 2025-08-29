@@ -269,3 +269,6 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 86400.0,  # раз в сутки
     },
 }
+
+# Аватарка по умолчанию для пользователей
+DEFAULT_AVATAR_URL = "https://teststudiaorbita.ru/media/avatars/diamond.png"

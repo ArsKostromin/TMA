@@ -84,5 +84,5 @@ class UserBalanceView(APIView):
         serializer = UserBalanceSerializer({
             'balance_ton': user.balance_ton,
             'balance_stars': user.balance_stars
-        })
+        }, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)

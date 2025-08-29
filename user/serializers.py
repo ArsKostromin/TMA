@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.conf import settings
 
 
 class TelegramAuthRequestSerializer(serializers.Serializer):
@@ -8,9 +9,15 @@ class TelegramAuthRequestSerializer(serializers.Serializer):
 class TelegramAuthResponseSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
-    avatar_url = serializers.CharField(allow_null=True)
+    avatar_url = serializers.SerializerMethodField()
     access = serializers.CharField()
     refresh = serializers.CharField()
+
+    def get_avatar_url(self, obj):
+        """Возвращает аватарку пользователя или аватарку по умолчанию"""
+        if obj.get('avatar_url'):
+            return obj['avatar_url']
+        return getattr(settings, 'DEFAULT_AVATAR_URL', "https://teststudiaorbita.ru/media/avatars/diamond.png")
 
 
 class RefreshTokenRequestSerializer(serializers.Serializer):
@@ -28,3 +35,9 @@ class LogoutResponseSerializer(serializers.Serializer):
 class UserBalanceSerializer(serializers.Serializer):
     balance_ton = serializers.DecimalField(max_digits=18, decimal_places=6)
     balance_stars = serializers.IntegerField()
+    avatar_url = serializers.SerializerMethodField()
+
+    def get_avatar_url(self, obj):
+        """Возвращает аватарку пользователя или аватарку по умолчанию"""
+        user = self.context['request'].user
+        return user.get_avatar_url()
