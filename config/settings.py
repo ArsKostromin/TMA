@@ -266,9 +266,12 @@ CELERY_BEAT_SCHEDULE = {
     },
     'process-daily-raffle': {
         'task': 'raffle.tasks.process_daily_raffle',
-        'schedule': 86400.0,  # раз в сутки
+        'schedule': 60.0,  # раз в сутки
     },
 }
 
 # Аватарка по умолчанию для пользователей
 DEFAULT_AVATAR_URL = "https://teststudiaorbita.ru/media/avatars/diamond.png"
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
