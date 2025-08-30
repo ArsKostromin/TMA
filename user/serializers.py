@@ -41,3 +41,8 @@ class UserBalanceSerializer(serializers.Serializer):
         """Возвращает аватарку пользователя или аватарку по умолчанию"""
         user = self.context['request'].user
         return user.get_avatar_url()
+
+    def get_gift_count(self, obj):
+        """Возвращает количество предметов в инвентаре пользователя"""
+        user = self.context['request'].user
+        return user.gifts.count()
