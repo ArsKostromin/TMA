@@ -77,13 +77,16 @@ class UserBalanceView(APIView):
     @extend_schema(
         responses={200: UserBalanceSerializer},
         summary="Получение баланса пользователя",
-        description="Возвращает текущий баланс TON и Stars для аутентифицированного пользователя."
+        description="Возвращает текущий баланс TON, Stars и количество подарков в инвентаре для аутентифицированного пользователя."
     )
     def get(self, request):
         user = request.user
+        # Подсчитываем количество подарков в инвентаре пользователя
+        gift_count = user.gifts.count()
+        
         serializer = UserBalanceSerializer({
             'balance_ton': user.balance_ton,
             'balance_stars': user.balance_stars,
-            'gift_count': user.gifts.count()
+            'gift_count': gift_count
         }, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
