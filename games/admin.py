@@ -16,7 +16,7 @@ class GameAdmin(admin.ModelAdmin):
     list_display = ("id", "mode", "status", "pot_amount_ton", "winner", "commission_percent", "started_at", "ended_at")
     list_filter = ("mode", "status", "started_at", "ended_at")
     search_fields = ("id", "winner__username", "winner__first_name", "winner__last_name")
-    readonly_fields = ("hash", "started_at", "ended_at")
+    # readonly_fields = ("hash", "started_at", "ended_at")
     inlines = [GamePlayerInline]
 
 
