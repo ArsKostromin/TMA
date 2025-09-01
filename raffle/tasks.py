@@ -61,15 +61,44 @@ def process_daily_raffle() -> str:
         # Подбираем приз для следующего розыгрыша
         next_prize: Gift | None = None
         current_prize = raffle.prize
+        
+        # Логируем информацию о текущем призе
         if current_prize:
-            # Ищем свободный подарок такой же коллекции/символа
-            next_prize = (
-                Gift.objects
-                .filter(symbol=current_prize.symbol, user__isnull=True)
-                .exclude(pk=current_prize.pk)
-                .order_by("id")
-                .first()
-            )
+            logger.info("[Raffle] Текущий приз: ID=%s, symbol=%s", current_prize.id, current_prize.symbol)
+        else:
+            logger.info("[Raffle] Текущий приз не задан")
+        
+        # Ищем любой свободный подарок (не только с тем же символом)
+        available_gifts_count = Gift.objects.filter(user__isnull=True).count()
+        logger.info("[Raffle] Всего доступных подарков: %s", available_gifts_count)
+        
+        next_prize = (
+            Gift.objects
+            .filter(user__isnull=True)
+            .exclude(pk=current_prize.pk if current_prize else 0)
+            .order_by("id")
+            .first()
+        )
+        
+        if next_prize:
+            logger.info("[Raffle] Найден подарок для следующего розыгрыша: ID=%s, symbol=%s", next_prize.id, next_prize.symbol)
+        else:
+            logger.info("[Raffle] Не найден подарок с другим символом, пробуем найти с тем же символом")
+            
+            # Если не нашли, попробуем найти с тем же символом (fallback)
+            if current_prize and current_prize.symbol:
+                next_prize = (
+                    Gift.objects
+                    .filter(symbol=current_prize.symbol, user__isnull=True)
+                    .exclude(pk=current_prize.pk)
+                    .order_by("id")
+                    .first()
+                )
+                
+                if next_prize:
+                    logger.info("[Raffle] Найден подарок с тем же символом: ID=%s, symbol=%s", next_prize.id, next_prize.symbol)
+                else:
+                    logger.info("[Raffle] Не найдено подарков с символом %s", current_prize.symbol)
 
         if not next_prize:
             logger.info("[Raffle] Нет доступного подарка для следующего розыгрыша — новый не создан")
