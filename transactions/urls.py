@@ -15,3 +15,15 @@ urlpatterns = [
     path('ton/transaction/<str:tx_hash>/', views.get_transaction_status, name='get_transaction_status'),
     path('ton/check-transactions/', views.check_pending_transactions, name='check_pending_transactions'),
 ]
+
+
+# urlpatterns = [
+#     # Кошельки
+#     path('wallets/create/', views.create_wallet, name='create_wallet'),
+#     path('wallets/<int:user_id>/', views.get_wallet, name='get_wallet'),
+#     path('wallets/<int:user_id>/balance/', views.get_wallet_balance, name='get_wallet_balance'),
+
+#     # Транзакции
+#     path('wallets/<int:user_id>/transactions/', views.get_transaction_history, name='transaction_history'),
+#     path('transactions/<str:tx_hash>/', views.get_transaction_status, name='transaction_status'),
+# ]
