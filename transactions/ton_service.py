@@ -84,26 +84,7 @@ class TONService:
             print(f"Ошибка получения транзакций: {e}")
             return []
     
-    def check_usdt_balance(self, wallet_address):
-        """Проверяет баланс USDT-TON через Jetton API"""
-        try:
-            params = {"account": wallet_address, "jetton_master": self.usdt_contract_address}
-            if self.ton_api_key:
-                params["api_key"] = self.ton_api_key
-            response = requests.get(
-                f"{self.ton_api_base_url}/getJettonWalletData",
-                params=params
-            )
-            response.raise_for_status()
-            data = response.json()
-            
-            if data.get("ok"):
-                balance = Decimal(data["result"]["balance"]) / Decimal("1000000")  # USDT имеет 6 знаков после запятой
-                return balance
-            return Decimal("0")
-        except Exception as e:
-            print(f"Ошибка получения USDT баланса: {e}")
-            return Decimal("0")
+    # USDT отключен: метод удален, чтобы не дергать Jetton API
     
     def process_incoming_transaction(self, tx_data):
         """Обрабатывает входящую транзакцию"""

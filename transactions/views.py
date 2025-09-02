@@ -83,7 +83,7 @@ class WalletViewSet(viewsets.ViewSet):
 
 
     @extend_schema(
-        description="Возвращает балансы TON/USDT для кошелька текущего пользователя",
+        description="Возвращает баланс TON для кошелька текущего пользователя",
         responses={200: BalanceResponseSerializer},
         parameters=[],
         examples=[
@@ -91,7 +91,7 @@ class WalletViewSet(viewsets.ViewSet):
                 name="Успешный ответ",
                 value={
                     "success": True,
-                    "balances": {"TON": 1.23, "USDT": 0},
+                    "balances": {"TON": 1.23},
                     "wallet_address": "UQ000006_6_1756799783"
                 },
             )
@@ -100,16 +100,15 @@ class WalletViewSet(viewsets.ViewSet):
     )
     @decorators.action(detail=False, methods=["get"], url_path="me/balance")
     def balance(self, request):
-        """Возвращает балансы TON/USDT для кошелька текущего пользователя"""
+        """Возвращает баланс TON для кошелька текущего пользователя"""
         try:
             if not hasattr(request.user, 'ton_wallet'):
                 return Response({'success': False, 'error': 'Кошелек не найден'}, status=status.HTTP_404_NOT_FOUND)
             wallet = request.user.ton_wallet
             ton_balance = ton_service.get_wallet_balance(wallet.address)
-            usdt_balance = ton_service.check_usdt_balance(wallet.address)
             return Response({
                 'success': True,
-                'balances': {'TON': float(ton_balance), 'USDT': float(usdt_balance)},
+                'balances': {'TON': float(ton_balance)},
                 'wallet_address': wallet.address
             }, status=status.HTTP_200_OK)
         except Exception as e:

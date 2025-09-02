@@ -39,17 +39,13 @@ class TransactionSerializer(serializers.ModelSerializer):
 
 
 class DepositAddressSerializer(serializers.Serializer):
-    """Сериализатор для запроса адреса пополнения"""
-    token = serializers.ChoiceField(
-        choices=[('TON', 'TON'), ('USDT', 'USDT-TON')],
-        default='TON'
-    )
+    """Тело запроса не требуется (USDT отключен, пополнение только TON)"""
+    pass
 
 
 class WalletBalanceSerializer(serializers.Serializer):
-    """Сериализатор для баланса кошелька"""
+    """Сериализатор для баланса кошелька (только TON)"""
     TON = serializers.DecimalField(max_digits=18, decimal_places=9)
-    USDT = serializers.DecimalField(max_digits=18, decimal_places=6)
 
 
 class DepositInfoSerializer(serializers.Serializer):
