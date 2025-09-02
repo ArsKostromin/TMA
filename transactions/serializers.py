@@ -63,3 +63,32 @@ class DepositInfoSerializer(serializers.Serializer):
     min_deposit = serializers.DictField(
         child=serializers.DecimalField(max_digits=10, decimal_places=2)
     )
+
+
+# ===== Swagger-friendly wrapper serializers for responses =====
+
+class SuccessSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    message = serializers.CharField(required=False, allow_blank=True)
+
+
+class WalletAddressCreateResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    wallet = TONWalletSerializer()
+    message = serializers.CharField()
+
+
+class AddressResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    address = serializers.CharField()
+
+
+class BalanceResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    balances = WalletBalanceSerializer()
+    wallet_address = serializers.CharField()
+
+
+class TransactionsListResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    transactions = TONTransactionSerializer(many=True)
