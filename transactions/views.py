@@ -1,14 +1,14 @@
 from django.shortcuts import render
-from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import status, viewsets, mixins, decorators
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from .ton_service import TONService
 from .models import TONWallet, TONTransaction, Transaction
 from .serializers import (
-    TONWalletSerializer, 
-    TONTransactionSerializer, 
+    TONWalletSerializer,
+    TONTransactionSerializer,
+    TransactionSerializer,
     DepositAddressSerializer
 )
 
@@ -16,194 +16,113 @@ User = get_user_model()
 ton_service = TONService()
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_deposit_address(request):
-    """Создает или получает адрес для пополнения баланса"""
-    try:
-        user = request.user
-        wallet = ton_service.create_wallet_for_user(user)
-        
-        serializer = TONWalletSerializer(wallet)
-        return Response({
-            'success': True,
-            'wallet': serializer.data,
-            'message': 'Адрес для пополнения создан'
-        }, status=status.HTTP_201_CREATED)
-        
-    except Exception as e:
-        return Response({
-            'success': False,
-            'error': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+class WalletViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
 
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_deposit_address(request):
-    """Получает адрес для пополнения пользователя"""
-    try:
-        user = request.user
-        address = ton_service.get_deposit_address(user)
-        
-        return Response({
-            'success': True,
-            'address': address,
-            'message': 'Адрес для пополнения получен'
-        }, status=status.HTTP_200_OK)
-        
-    except Exception as e:
-        return Response({
-            'success': False,
-            'error': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_wallet_balance(request):
-    """Получает баланс TON кошелька пользователя"""
-    try:
-        user = request.user
-        
-        if not hasattr(user, 'ton_wallet'):
-            return Response({
-                'success': False,
-                'error': 'Кошелек не найден'
-            }, status=status.HTTP_404_NOT_FOUND)
-        
-        wallet = user.ton_wallet
-        ton_balance = ton_service.get_wallet_balance(wallet.address)
-        usdt_balance = ton_service.check_usdt_balance(wallet.address)
-        
-        return Response({
-            'success': True,
-            'balances': {
-                'TON': float(ton_balance),
-                'USDT': float(usdt_balance)
-            },
-            'wallet_address': wallet.address
-        }, status=status.HTTP_200_OK)
-        
-    except Exception as e:
-        return Response({
-            'success': False,
-            'error': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_transaction_history(request):
-    """Получает историю TON транзакций пользователя"""
-    try:
-        user = request.user
-        transactions = TONTransaction.objects.filter(user=user).order_by('-created_at')
-        
-        serializer = TONTransactionSerializer(transactions, many=True)
-        
-        return Response({
-            'success': True,
-            'transactions': serializer.data
-        }, status=status.HTTP_200_OK)
-        
-    except Exception as e:
-        return Response({
-            'success': False,
-            'error': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_transaction_status(request, tx_hash):
-    """Получает статус конкретной транзакции"""
-    try:
-        user = request.user
-        
-        # Проверяем, что транзакция принадлежит пользователю
+    @decorators.action(detail=False, methods=["post"], url_path="me/address")
+    def create_or_get_address(self, request):
+        """Создает или возвращает адрес кошелька текущего пользователя"""
         try:
-            transaction = TONTransaction.objects.get(tx_hash=tx_hash, user=user)
-        except TONTransaction.DoesNotExist:
+            wallet = ton_service.create_wallet_for_user(request.user)
             return Response({
-                'success': False,
-                'error': 'Транзакция не найдена'
-            }, status=status.HTTP_404_NOT_FOUND)
-        
-        # Получаем актуальный статус из блокчейна
-        blockchain_status = ton_service.get_transaction_status(tx_hash)
-        
-        serializer = TONTransactionSerializer(transaction)
-        
-        return Response({
-            'success': True,
-            'transaction': serializer.data,
-            'blockchain_status': blockchain_status
-        }, status=status.HTTP_200_OK)
-        
-    except Exception as e:
-        return Response({
-            'success': False,
-            'error': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                'success': True,
+                'wallet': TONWalletSerializer(wallet).data,
+                'message': 'Адрес для пополнения создан или уже существует'
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def check_pending_transactions(request):
-    """Проверяет и обрабатывает ожидающие транзакции"""
-    try:
-        # Запускаем проверку транзакций
-        ton_service.check_pending_transactions()
-        
-        return Response({
-            'success': True,
-            'message': 'Проверка транзакций завершена'
-        }, status=status.HTTP_200_OK)
-        
-    except Exception as e:
-        return Response({
-            'success': False,
-            'error': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    @decorators.action(detail=False, methods=["get"], url_path="me/address")
+    def get_address(self, request):
+        """Возвращает адрес кошелька текущего пользователя"""
+        try:
+            address = ton_service.get_deposit_address(request.user)
+            return Response({'success': True, 'address': address}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_deposit_info(request):
-    """Получает полную информацию для пополнения"""
-    try:
-        user = request.user
-        wallet = ton_service.create_wallet_for_user(user)
-        
-        # Получаем текущие балансы
-        ton_balance = ton_service.get_wallet_balance(wallet.address)
-        usdt_balance = ton_service.check_usdt_balance(wallet.address)
-        
-        # Получаем последние транзакции
-        recent_transactions = TONTransaction.objects.filter(
-            user=user
-        ).order_by('-created_at')[:5]
-        
-        serializer = TONTransactionSerializer(recent_transactions, many=True)
-        
-        return Response({
-            'success': True,
-            'wallet_address': wallet.address,
-            'current_balances': {
-                'TON': float(ton_balance),
-                'USDT': float(usdt_balance)
-            },
-            'recent_transactions': serializer.data,
-            'supported_tokens': ['TON', 'USDT-TON'],
-            'min_deposit': {
-                'TON': 0.1,
-                'USDT': 1.0
-            }
-        }, status=status.HTTP_200_OK)
-        
-    except Exception as e:
-        return Response({
-            'success': False,
-            'error': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    @decorators.action(detail=False, methods=["get"], url_path="me/balance")
+    def balance(self, request):
+        """Возвращает балансы TON/USDT для кошелька текущего пользователя"""
+        try:
+            if not hasattr(request.user, 'ton_wallet'):
+                return Response({'success': False, 'error': 'Кошелек не найден'}, status=status.HTTP_404_NOT_FOUND)
+            wallet = request.user.ton_wallet
+            ton_balance = ton_service.get_wallet_balance(wallet.address)
+            usdt_balance = ton_service.check_usdt_balance(wallet.address)
+            return Response({
+                'success': True,
+                'balances': {'TON': float(ton_balance), 'USDT': float(usdt_balance)},
+                'wallet_address': wallet.address
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class TONTransactionViewSet(mixins.ListModelMixin,
+                            mixins.RetrieveModelMixin,
+                            viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return TONTransaction.objects.filter(user=self.request.user).order_by('-created_at')
+
+    serializer_class = TONTransactionSerializer
+
+    @decorators.action(detail=False, methods=["post"], url_path="check")
+    def check_pending(self, request):
+        """Запускает проверку ожидающих транзакций для всех активных кошельков"""
+        try:
+            ton_service.check_pending_transactions()
+            return Response({'success': True, 'message': 'Проверка транзакций завершена'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+    @decorators.action(detail=False, methods=["get"], url_path=r"status/(?P<tx_hash>[^/]+)")
+    def status(self, request, tx_hash: str):
+        """Возвращает локальную запись и статус из блокчейна по tx_hash"""
+        try:
+            try:
+                transaction = TONTransaction.objects.get(tx_hash=tx_hash, user=request.user)
+            except TONTransaction.DoesNotExist:
+                return Response({'success': False, 'error': 'Транзакция не найдена'}, status=status.HTTP_404_NOT_FOUND)
+            blockchain_status = ton_service.get_transaction_status(tx_hash)
+            return Response({'success': True, 'transaction': TONTransactionSerializer(transaction).data, 'blockchain_status': blockchain_status}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AppTransactionViewSet(mixins.ListModelMixin,
+                            mixins.RetrieveModelMixin,
+                            viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Transaction.objects.filter(user=self.request.user).order_by('-created_at')
+
+    serializer_class = TransactionSerializer
+
+
+class DepositInfoViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
+
+    @decorators.action(detail=False, methods=["get"], url_path="me")
+    def me(self, request):
+        try:
+            wallet = ton_service.create_wallet_for_user(request.user)
+            ton_balance = ton_service.get_wallet_balance(wallet.address)
+            usdt_balance = ton_service.check_usdt_balance(wallet.address)
+            recent_transactions = TONTransaction.objects.filter(user=request.user).order_by('-created_at')[:5]
+            return Response({
+                'success': True,
+                'wallet_address': wallet.address,
+                'current_balances': {'TON': float(ton_balance), 'USDT': float(usdt_balance)},
+                'recent_transactions': TONTransactionSerializer(recent_transactions, many=True).data,
+                'supported_tokens': ['TON', 'USDT-TON'],
+                'min_deposit': {'TON': 0.1, 'USDT': 1.0}
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

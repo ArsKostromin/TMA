@@ -10,9 +10,11 @@ class TONService:
     """Сервис для работы с TON кошельками и транзакциями"""
     
     def __init__(self):
-        self.master_wallet_address = "UQDPdsD2e_j6T-CAFNCmcC8fJvQixciaaUgJdK8Xz23taTCV"
-        self.ton_api_base_url = "https://toncenter.com/api/v2"
-        self.usdt_contract_address = "EQB-MPwrd1G6WKNkLz_VnVnY_M9ZR5o0vqa5T8l4bFJXwnaA"  # USDT-TON контракт
+        # Берем из settings, чтобы легко переключать окружения
+        self.master_wallet_address = getattr(settings, "TON_MASTER_WALLET", "")
+        self.ton_api_base_url = getattr(settings, "TON_API_BASE_URL", "https://toncenter.com/api/v2")
+        self.usdt_contract_address = getattr(settings, "USDT_CONTRACT_ADDRESS", "")  # USDT-TON контракт
+        self.ton_api_key = getattr(settings, "TON_API_KEY", None)
         
     def generate_subwallet_address(self, user_id):
         """Генерирует уникальный адрес субкошелька для пользователя"""
@@ -44,9 +46,12 @@ class TONService:
     def get_wallet_balance(self, wallet_address):
         """Получает баланс кошелька через TON API"""
         try:
+            params = {"address": wallet_address}
+            if self.ton_api_key:
+                params["api_key"] = self.ton_api_key
             response = requests.get(
                 f"{self.ton_api_base_url}/getAddressBalance",
-                params={"address": wallet_address}
+                params=params
             )
             response.raise_for_status()
             data = response.json()
@@ -62,12 +67,12 @@ class TONService:
     def get_wallet_transactions(self, wallet_address, limit=100):
         """Получает транзакции кошелька через TON API"""
         try:
+            params = {"address": wallet_address, "limit": limit}
+            if self.ton_api_key:
+                params["api_key"] = self.ton_api_key
             response = requests.get(
                 f"{self.ton_api_base_url}/getTransactions",
-                params={
-                    "address": wallet_address,
-                    "limit": limit
-                }
+                params=params
             )
             response.raise_for_status()
             data = response.json()
@@ -82,12 +87,12 @@ class TONService:
     def check_usdt_balance(self, wallet_address):
         """Проверяет баланс USDT-TON через Jetton API"""
         try:
+            params = {"account": wallet_address, "jetton_master": self.usdt_contract_address}
+            if self.ton_api_key:
+                params["api_key"] = self.ton_api_key
             response = requests.get(
                 f"{self.ton_api_base_url}/getJettonWalletData",
-                params={
-                    "account": wallet_address,
-                    "jetton_master": self.usdt_contract_address
-                }
+                params=params
             )
             response.raise_for_status()
             data = response.json()
@@ -151,10 +156,10 @@ class TONService:
                 ton_transaction=ton_tx
             )
             
-            # Обновляем баланс пользователя (предполагаем, что у пользователя есть поле balance)
-            if hasattr(wallet.user, 'balance'):
-                wallet.user.balance += amount
-                wallet.user.save()
+            # Обновляем TON баланс пользователя, если поле присутствует
+            if hasattr(wallet.user, 'balance_ton'):
+                wallet.user.balance_ton += amount
+                wallet.user.save(update_fields=["balance_ton"]) 
             
             return True
             
@@ -181,9 +186,12 @@ class TONService:
     def get_transaction_status(self, tx_hash):
         """Получает статус транзакции по хешу"""
         try:
+            params = {"hash": tx_hash}
+            if self.ton_api_key:
+                params["api_key"] = self.ton_api_key
             response = requests.get(
                 f"{self.ton_api_base_url}/getTransaction",
-                params={"hash": tx_hash}
+                params=params
             )
             response.raise_for_status()
             data = response.json()
