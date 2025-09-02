@@ -96,7 +96,8 @@ def list_users():
     users = User.objects.all()[:10]  # Показываем первых 10
     print("Доступные пользователи:")
     for user in users:
-        print(f"ID: {user.id}, Username: {user.username}, First name: {user.first_name}")
+        display_name = user.username or str(user.telegram_id)
+        print(f"ID: {user.id}, Username: {display_name}, Telegram ID: {user.telegram_id}")
     print()
 
 if __name__ == "__main__":
