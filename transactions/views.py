@@ -12,8 +12,9 @@ from .serializers import (
     AddressResponseSerializer,
     BalanceResponseSerializer,
     TransactionsListResponseSerializer,
+    DepositAddressSerializer,
 )
-from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample, OpenApiParameter
 
 User = get_user_model()
 ton_service = TONService()
@@ -24,7 +25,9 @@ class WalletViewSet(viewsets.ViewSet):
 
     @extend_schema(
         description="Создает или возвращает адрес кошелька текущего пользователя",
+        request=DepositAddressSerializer,
         responses={201: WalletAddressCreateResponseSerializer},
+        parameters=[],
         examples=[
             OpenApiExample(
                 name="Успешное создание/получение адреса",
@@ -60,6 +63,7 @@ class WalletViewSet(viewsets.ViewSet):
     @extend_schema(
         description="Возвращает адрес кошелька текущего пользователя",
         responses={200: AddressResponseSerializer},
+        parameters=[],
         examples=[
             OpenApiExample(
                 name="Успешный ответ",
@@ -81,6 +85,7 @@ class WalletViewSet(viewsets.ViewSet):
     @extend_schema(
         description="Возвращает балансы TON/USDT для кошелька текущего пользователя",
         responses={200: BalanceResponseSerializer},
+        parameters=[],
         examples=[
             OpenApiExample(
                 name="Успешный ответ",
@@ -114,6 +119,10 @@ class WalletViewSet(viewsets.ViewSet):
     @extend_schema(
         description="История TON-транзакций текущего пользователя",
         responses={200: TransactionsListResponseSerializer},
+        parameters=[
+            OpenApiParameter(name="limit", type=int, location=OpenApiParameter.QUERY, required=False, description="Количество элементов на странице (по умолчанию settings.PAGE_SIZE)"),
+            OpenApiParameter(name="offset", type=int, location=OpenApiParameter.QUERY, required=False, description="Смещение для пагинации"),
+        ],
         examples=[
             OpenApiExample(
                 name="Пример ответа",
