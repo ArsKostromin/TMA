@@ -1,14 +1,11 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import WalletViewSet, TONTransactionViewSet, AppTransactionViewSet, DepositInfoViewSet
+from .views import WalletViewSet
 
 app_name = 'transactions'
 
 router = DefaultRouter()
 router.register(r'wallets', WalletViewSet, basename='wallets')
-router.register(r'ton/transactions', TONTransactionViewSet, basename='ton-transactions')
-router.register(r'transactions', AppTransactionViewSet, basename='app-transactions')
-router.register(r'deposit-info', DepositInfoViewSet, basename='deposit-info')
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -8,8 +8,6 @@ from .models import TONWallet, TONTransaction, Transaction
 from .serializers import (
     TONWalletSerializer,
     TONTransactionSerializer,
-    TransactionSerializer,
-    DepositAddressSerializer
 )
 
 User = get_user_model()
@@ -61,68 +59,14 @@ class WalletViewSet(viewsets.ViewSet):
             return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class TONTransactionViewSet(mixins.ListModelMixin,
-                            mixins.RetrieveModelMixin,
-                            viewsets.GenericViewSet):
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return TONTransaction.objects.filter(user=self.request.user).order_by('-created_at')
-
-    serializer_class = TONTransactionSerializer
-
-    @decorators.action(detail=False, methods=["post"], url_path="check")
-    def check_pending(self, request):
-        """Запускает проверку ожидающих транзакций для всех активных кошельков"""
+    @decorators.action(detail=False, methods=["get"], url_path="me/transactions")
+    def transactions(self, request):
+        """История TON-транзакций текущего пользователя"""
         try:
-            ton_service.check_pending_transactions()
-            return Response({'success': True, 'message': 'Проверка транзакций завершена'}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-    @decorators.action(detail=False, methods=["get"], url_path=r"status/(?P<tx_hash>[^/]+)")
-    def status(self, request, tx_hash: str):
-        """Возвращает локальную запись и статус из блокчейна по tx_hash"""
-        try:
-            try:
-                transaction = TONTransaction.objects.get(tx_hash=tx_hash, user=request.user)
-            except TONTransaction.DoesNotExist:
-                return Response({'success': False, 'error': 'Транзакция не найдена'}, status=status.HTTP_404_NOT_FOUND)
-            blockchain_status = ton_service.get_transaction_status(tx_hash)
-            return Response({'success': True, 'transaction': TONTransactionSerializer(transaction).data, 'blockchain_status': blockchain_status}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class AppTransactionViewSet(mixins.ListModelMixin,
-                            mixins.RetrieveModelMixin,
-                            viewsets.GenericViewSet):
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return Transaction.objects.filter(user=self.request.user).order_by('-created_at')
-
-    serializer_class = TransactionSerializer
-
-
-class DepositInfoViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated]
-
-    @decorators.action(detail=False, methods=["get"], url_path="me")
-    def me(self, request):
-        try:
-            wallet = ton_service.create_wallet_for_user(request.user)
-            ton_balance = ton_service.get_wallet_balance(wallet.address)
-            usdt_balance = ton_service.check_usdt_balance(wallet.address)
-            recent_transactions = TONTransaction.objects.filter(user=request.user).order_by('-created_at')[:5]
+            transactions = TONTransaction.objects.filter(user=request.user).order_by('-created_at')
             return Response({
                 'success': True,
-                'wallet_address': wallet.address,
-                'current_balances': {'TON': float(ton_balance), 'USDT': float(usdt_balance)},
-                'recent_transactions': TONTransactionSerializer(recent_transactions, many=True).data,
-                'supported_tokens': ['TON', 'USDT-TON'],
-                'min_deposit': {'TON': 0.1, 'USDT': 1.0}
+                'transactions': TONTransactionSerializer(transactions, many=True).data
             }, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
