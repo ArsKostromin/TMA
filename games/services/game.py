@@ -232,8 +232,8 @@ class GameService:
         return {
             "id": game.id,
             "hash": game.hash,
-            "started_at": game.started_at,
-            "ended_at": game.ended_at,
+            "started_at": game.started_at.isoformat() if game.started_at else None,
+            "ended_at": game.ended_at.isoformat() if game.ended_at else None,
             "winner": {
                 "id": winner.user.id,
                 "username": getattr(winner.user, "username", None),
