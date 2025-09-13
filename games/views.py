@@ -301,7 +301,6 @@ class SpinGameHistoryView(ListAPIView):
     def get_queryset(self):
         return (
             SpinGame.objects
-            .filter(player=self.request.user)
             .select_related("gift_won")
             .order_by("-played_at")
         )
