@@ -88,9 +88,7 @@ services:
       - SG-network
 
   nginx:
-    build:
-      context: .
-      dockerfile: nginx.Dockerfile
+    image: fholzer/nginx-brotli:latest
     container_name: SG-nginx
     ports:
       - "80:80"
