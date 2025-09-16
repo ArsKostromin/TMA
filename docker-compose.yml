@@ -88,7 +88,9 @@ services:
       - SG-network
 
   nginx:
-    image: nginx:latest
+    build:
+      context: .
+      dockerfile: nginx.Dockerfile
     container_name: SG-nginx
     ports:
       - "80:80"
