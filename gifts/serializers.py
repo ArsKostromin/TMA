@@ -7,13 +7,13 @@ class GiftSerializer(serializers.ModelSerializer):
         model = Gift
         fields = [
             "id",
-            "tg_nft_id", 
+            "ton_contract_address", 
             "name",
-            "description",
             "image_url",
             "price_ton",
-            "rarity",
-            "created_at",
+            "backdrop",
+            "symbol",
+            "symbol",
         ]
 
 
