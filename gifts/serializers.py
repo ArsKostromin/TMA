@@ -13,7 +13,6 @@ class GiftSerializer(serializers.ModelSerializer):
             "price_ton",
             "backdrop",
             "symbol",
-            "symbol",
         ]
 
 

@@ -136,9 +136,12 @@ class GameService:
                 "gifts": [
                     {
                         "id": gift.id,
+                        "ton_contract_address": gift.ton_contract_address,
                         "name": gift.name,
-                        "price_ton": str(gift.price_ton),
                         "image_url": gift.image_url,
+                        "price_ton": str(gift.price_ton),
+                        "backdrop": gift.backdrop,
+                        "symbol": gift.symbol,
                     }
                     for gift in p.gifts.all()
                 ],
@@ -242,9 +245,12 @@ class GameService:
             "winner_gifts": [
                 {
                     "id": gift.id,
+                    "ton_contract_address": gift.ton_contract_address,
                     "name": gift.name,
                     "image_url": gift.image_url,
                     "price_ton": str(gift.price_ton),
+                    "backdrop": gift.backdrop,
+                    "symbol": gift.symbol,
                 }
                 for gift in winner.gifts.all()
             ],
