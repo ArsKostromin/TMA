@@ -6,14 +6,24 @@ from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from decimal import Decimal
 from django.conf import settings
+from gifts.serializers import GiftSerializer
+
 
 User = get_user_model()
 
-class GiftSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Gift
-        fields = ["id", "name", "image_url"]
-
+# class GiftSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Gift
+#         fields = [
+#             "id",
+#             "ton_contract_address", 
+#             "name",
+#             "image_url",
+#             "price_ton",
+#             "backdrop",
+#             "symbol",
+#             "symbol",
+#         ]
 
 class GamePlayerSerializer(serializers.ModelSerializer):
     gifts = GiftSerializer(many=True)
@@ -42,12 +52,6 @@ class GameHistorySerializer(serializers.ModelSerializer):
 
     def get_is_winner(self, obj):
         return obj.winner_id == self.context["request"].user.id
-
-
-class GiftSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Gift
-        fields = ["id", "name", "image_url"]
 
 
 class GamePlayerSerializer(serializers.ModelSerializer):
@@ -100,19 +104,6 @@ class TopPlayerSerializer(serializers.ModelSerializer):
             total=Sum("pot_amount_ton")
         )["total"]
         return total or 0
-
-
-class GiftSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Gift
-        fields = [
-            "id",
-            "name",
-            "description",
-            "image_url",
-            "price_ton",
-            "rarity",
-        ]
 
 
 class SpinWheelSectorSerializer(serializers.ModelSerializer):
