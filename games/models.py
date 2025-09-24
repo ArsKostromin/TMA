@@ -54,6 +54,11 @@ class Game(models.Model):
             self.hash = hashlib.sha256(secret.encode()).hexdigest()
         super().save(*args, **kwargs)
 
+    def get_remaining_time(self):
+        timer_key = f"game_timer:{self.id}"
+        ttl = r.ttl(timer_key)  # вернёт -1 если без таймера, -2 если ключа нет
+        return max(ttl, 0)
+
 
 class GamePlayer(models.Model):
     game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="players", verbose_name="Игра")
