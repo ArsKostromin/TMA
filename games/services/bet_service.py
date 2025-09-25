@@ -14,9 +14,16 @@ class BetService:
         gift_ids = список Gift.id, которые юзер ставит (каждый Gift уникален)
         """
         try:
-            game = Game.objects.select_for_update().get(id=game_id, status="waiting")
+            game = (
+                Game.objects
+                .select_for_update()
+                .get(id=game_id)
+            )
         except Game.DoesNotExist:
             raise ValidationError("Игра недоступна")
+
+        if game.status == "finished":
+            raise ValidationError("Игра уже завершена, ставки не принимаются")
 
         gp, _ = GamePlayer.objects.get_or_create(game=game, user=user)
 
@@ -43,9 +50,16 @@ class BetService:
     @transaction.atomic
     def place_bet_ton(user, game_id, amount: Decimal):
         try:
-            game = Game.objects.select_for_update().get(id=game_id, status="waiting")
+            game = (
+                Game.objects
+                .select_for_update()
+                .get(id=game_id)
+            )
         except Game.DoesNotExist:
             raise ValidationError("Игра недоступна")
+
+        if game.status == "finished":
+            raise ValidationError("Игра уже завершена, ставки не принимаются")
 
         if amount <= 0:
             raise ValidationError("Ставка должна быть больше нуля")
