@@ -42,22 +42,10 @@ class GameService:
         with transaction.atomic():
             game = (
                 Game.objects
-                .filter(mode="pvp")
+                .filter(status="waiting", mode="pvp")
                 .select_for_update()
-                .filter(
-                    models.Q(status="waiting") |
-                    models.Q(status="running")
-                )
-                .order_by("id")
                 .first()
             )
-
-            if game:
-                # если running, проверим таймер
-                if game.status == "running":
-                    if game.get_remaining_time() <= 20:  # таймер зашёл за 20 сек
-                        game = None
-
             if not game:
                 game = Game.objects.create(mode="pvp", status="waiting")
 
