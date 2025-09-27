@@ -1,5 +1,6 @@
 import redis
 import random
+import logging
 from decimal import Decimal
 from django.db import transaction
 from asgiref.sync import sync_to_async
@@ -8,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
 
 r = settings.REDIS_CLIENT
+logger = logging.getLogger('games.services.game')
 
 class GameService:
     @staticmethod
@@ -18,6 +20,10 @@ class GameService:
             .filter(user=user, game__status__in=["waiting", "running"])
             .first()
         )
+        if gp:
+            logger.info(f"Найдена активная игра {gp.game.id} для пользователя {user.username}")
+        else:
+            logger.info(f"Активных игр не найдено для пользователя {user.username}")
         return gp.game.id if gp else None
 
     @staticmethod
@@ -27,6 +33,7 @@ class GameService:
 
         # Не добавляем игрока в завершённую игру
         if game.status == "finished":
+            logger.warning(f"Попытка добавить пользователя {user.username} в завершенную игру {game_id}")
             return
 
         if not GamePlayer.objects.filter(game=game, user=user).exists():
@@ -35,6 +42,9 @@ class GameService:
                 user=user,
                 bet_ton=Decimal("0.00")
             )
+            logger.info(f"Пользователь {user.username} добавлен в игру {game_id}")
+        else:
+            logger.info(f"Пользователь {user.username} уже в игре {game_id}")
 
     @staticmethod
     def get_or_create_game_and_player(user):
@@ -48,6 +58,9 @@ class GameService:
             )
             if not game:
                 game = Game.objects.create(mode="pvp", status="waiting")
+                logger.info(f"Создана новая игра {game.id} для пользователя {user.username}")
+            else:
+                logger.info(f"Найдена ожидающая игра {game.id} для пользователя {user.username}")
 
             if not GamePlayer.objects.filter(game=game, user=user).exists():
                 GamePlayer.objects.create(
@@ -55,6 +68,7 @@ class GameService:
                     user=user,
                     bet_ton=Decimal("0.00"),
                 )
+                logger.info(f"Пользователь {user.username} добавлен в игру {game.id}")
 
         return game.id, f"pvp_{game.id}"
 
