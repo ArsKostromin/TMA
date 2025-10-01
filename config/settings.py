@@ -266,7 +266,7 @@ CELERY_BEAT_SCHEDULE = {
     },
     'process-daily-raffle': {
         'task': 'raffle.tasks.process_daily_raffle',
-        'schedule': 60.0,  # раз в сутки
+        'schedule': 86400.0,  # раз в сутки
     },
 }
 
