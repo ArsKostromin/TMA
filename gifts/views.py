@@ -9,7 +9,7 @@ from rest_framework import generics
 from .services.inventory import InventoryService
 from .serializers import GiftSerializer
 
-# ... existing code ...
+
 class UserInventoryView(generics.ListAPIView):
     """
     Получить список подарков в инвентаре текущего пользователя
@@ -19,3 +19,13 @@ class UserInventoryView(generics.ListAPIView):
 
     def get_queryset(self):
         return InventoryService.get_user_inventory(self.request.user)
+
+
+class UserAddsGift(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = GiftSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
