@@ -105,6 +105,24 @@ services:
     networks:
       - SG-network
 
+  userbot:
+    build:
+      context: ./userbot
+    container_name: SG-userbot
+    restart: unless-stopped
+    volumes:
+      - ./userbot/session:/app/session
+      - ./userbot/gifts.json:/app/gifts.json
+    environment:
+      - API_ID=${API_ID}
+      - API_HASH=${API_HASH}
+      - PHONE_NUMBER=${PHONE_NUMBER}
+      - LOGIN_CODE=${LOGIN_CODE}
+      - API_BASE_URL=${API_BASE_URL:-http://web:8000}
+      - API_TOKEN=${API_TOKEN}
+    networks:
+      - SG-network
+
 networks:
   SG-network:
     driver: bridge
