@@ -6,11 +6,13 @@ from gifts.models import Gift
 class GiftSerializer(serializers.ModelSerializer):
     # Доп. поля из входящих данных, которые нужно смэппить
     backdrop_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    user = serializers.IntegerField(write_only=True, required=False)
 
     class Meta:
         model = Gift
         fields = [
             "id",
+            "user",
             "ton_contract_address", 
             "name",
             "image_url",
@@ -45,13 +47,23 @@ class GiftSerializer(serializers.ModelSerializer):
         if backdrop_name:
             validated_data["backdrop"] = backdrop_name
 
-        # Владелец — текущий пользователь
-        request = self.context.get("request")
-        current_user = getattr(request, "user", None)
-
-        # Обеспечим наличие владельца, если он есть в контексте
-        if current_user and current_user.is_authenticated:
-            validated_data["user"] = current_user
+        # Обработка пользователя
+        user_id = validated_data.pop("user", None)
+        if user_id:
+            # Если user_id передан в данных, используем его
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            try:
+                user = User.objects.get(id=user_id)
+                validated_data["user"] = user
+            except User.DoesNotExist:
+                raise serializers.ValidationError(f"Пользователь с ID {user_id} не найден")
+        else:
+            # Иначе используем текущего пользователя из контекста
+            request = self.context.get("request")
+            current_user = getattr(request, "user", None)
+            if current_user and current_user.is_authenticated:
+                validated_data["user"] = current_user
 
         # Upsert по ton_contract_address (уникальный)
         ton_contract_address = validated_data.get("ton_contract_address")

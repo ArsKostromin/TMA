@@ -120,6 +120,7 @@ services:
       - LOGIN_CODE=${LOGIN_CODE}
       - API_BASE_URL=${API_BASE_URL:-http://web:8000}
       - API_TOKEN=${API_TOKEN}
+      - USER_ID=${USER_ID}
     networks:
       - SG-network
 

@@ -26,7 +26,12 @@ class UserAddsGift(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = GiftSerializer(data=request.data, context={"request": request})
+        # Если user_id передан в данных, используем его, иначе текущего пользователя
+        data = request.data.copy()
+        if 'user' not in data:
+            data['user'] = request.user.id
+        
+        serializer = GiftSerializer(data=data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
