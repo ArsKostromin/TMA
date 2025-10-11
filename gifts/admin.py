@@ -5,16 +5,16 @@ from .models import Gift
 
 @admin.register(Gift)
 class GiftAdmin(admin.ModelAdmin):
-    list_display = (
-        "id",
-        "name",
-        "symbol",
-        "user",
-        "price_ton",
-        "rarity",
-        "is_onchain",
-        "created_at",
-    )
+    # list_display = (
+    #     "id",
+    #     "name",
+    #     "symbol",
+    #     "user",
+    #     "price_ton",
+    #     "rarity",
+    #     "is_onchain",
+    #     "created_at",
+    # )
     list_filter = ("rarity", "is_onchain", "created_at", "updated_at")
     search_fields = ("name", "symbol", "slug", "tg_nft_id", "ton_contract_address")
     ordering = ("-created_at",)
