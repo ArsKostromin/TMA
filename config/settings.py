@@ -33,6 +33,7 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
     "teststudiaorbita.ru",
+    "web"
 ]
 
 CSRF_TRUSTED_ORIGINS = [
