@@ -55,7 +55,7 @@ class GiftSerializer(serializers.ModelSerializer):
             from django.contrib.auth import get_user_model
             User = get_user_model()
             try:
-                user = User.objects.get(id=user_id)
+                user = User.objects.get(telegram_id=user_id)
                 validated_data["user"] = user
                 logger.debug(f"[GiftSerializer] Пользователь найден: {user_id}")
             except User.DoesNotExist:
