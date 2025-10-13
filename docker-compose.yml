@@ -95,9 +95,9 @@ services:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt
       - ./certbot:/var/www/certbot
-      - ./staticfiles:/app/staticfiles   # Django статика
-      - ./media:/app/media               # Django медиа
-      - /root/unity_build:/var/www/unity   # Unity билд
+      - ./staticfiles:/app/staticfiles
+      - ./media:/app/media
+      - /root/unity_build:/var/www/unity
     depends_on:
       - web
     networks:
@@ -110,7 +110,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./userbot/session:/app/session
-      - ./userbot/gifts.json:/app/gifts.json
+      # 💡 ИЗМЕНЕНИЕ: Добавляем общую media-папку
+      - ./media:/app/media
     environment:
       - API_ID=${API_ID}
       - API_HASH=${API_HASH}
