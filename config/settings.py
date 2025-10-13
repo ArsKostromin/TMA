@@ -184,6 +184,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 #env
 BOT_TOKEN=os.getenv('BOT_TOKEN')
 
+# Userbot API (для передачи подарков из userbot в аккаунт пользователя)
+# Пример: USERBOT_API_URL=http://userbot:8080, USERBOT_API_TOKEN=secret-token
+USERBOT_API_URL = os.getenv("USERBOT_API_URL")
+USERBOT_API_TOKEN = os.getenv("USERBOT_API_TOKEN")
+
 
 # JWT конфиг
 JWT_SECRET = os.getenv("JWT_SECRET")

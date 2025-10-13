@@ -3,6 +3,7 @@ import logging
 from rest_framework import serializers
 from decimal import Decimal
 from gifts.models import Gift
+from django.contrib.auth import get_user_model
 
 logger = logging.getLogger(__name__)
 
@@ -89,3 +90,44 @@ class InventorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Gift._meta.get_field("user").related_model  # твоя User модель
         fields = ["id", "username", "gifts"]
+
+
+class WithdrawGiftRequestSerializer(serializers.Serializer):
+    """
+    Запрос на вывод (передачу) подарка на аккаунт пользователя в Telegram.
+    По умолчанию использует аутентифицированного пользователя как получателя.
+    """
+    gift_contract_address = serializers.CharField(max_length=255)
+    # опционально можно передать получателя (телеграм id) вручную
+    to_telegram_id = serializers.IntegerField(required=False)
+    # фиксированная комиссия (по требованию ТЗ: 25 звёзд)
+    fee_stars = serializers.IntegerField(required=False, min_value=0, default=25)
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            raise serializers.ValidationError("Требуется аутентификация")
+
+        # Если не передан to_telegram_id — берём из профиля пользователя
+        to_tid = attrs.get("to_telegram_id")
+        if to_tid is None:
+            if not getattr(user, "telegram_id", None):
+                raise serializers.ValidationError("У пользователя не задан telegram_id")
+            attrs["to_telegram_id"] = int(user.telegram_id)
+
+        # Проверяем владение подарком (по тон-идентификатору)
+        gaddr = attrs["gift_contract_address"]
+        try:
+            gift = Gift.objects.get(ton_contract_address=gaddr, user=user)
+        except Gift.DoesNotExist:
+            raise serializers.ValidationError("Подарок не найден в вашем инвентаре")
+
+        # Проверка Stars для комиссии
+        fee = int(attrs.get("fee_stars", 25))
+        if user.balance_stars < fee:
+            raise serializers.ValidationError("Недостаточно Stars для комиссии")
+
+        attrs["gift_instance"] = gift
+        attrs["user_instance"] = user
+        return attrs
