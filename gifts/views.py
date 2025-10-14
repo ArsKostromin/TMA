@@ -3,15 +3,15 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework import status, generics, permissions
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
+from rest_framework import status, generics
+from drf_spectacular.utils import extend_schema
 
 from .serializers import GiftSerializer, GiftWithdrawSerializer
 from .services.inventory import InventoryService
 from .services.withdrawal import GiftWithdrawalService
 
 logger = logging.getLogger(__name__)
+
 
 class UserInventoryView(generics.ListAPIView):
     """
@@ -20,42 +20,53 @@ class UserInventoryView(generics.ListAPIView):
     serializer_class = GiftSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        user = self.request.user
-        logger.info(f"[Inventory] Запрос списка подарков для пользователя {user.id if user.is_authenticated else 'Anonymous'}")
-        return InventoryService.get_user_inventory(user)
+    @extend_schema(
+        responses={200: GiftSerializer(many=True)},
+        summary="Инвентарь пользователя",
+        description="Возвращает список NFT-подарков, принадлежащих текущему аутентифицированному пользователю."
+    )
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        logger.info(f"[Inventory] Запрос списка подарков для пользователя {user.id}")
+        gifts = InventoryService.get_user_inventory(user)
+        serializer = GiftSerializer(gifts, many=True, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class UserAddsGift(APIView):
-    permission_classes = [AllowAny]  # можно потом заменить на кастомную проверку токена
+    permission_classes = [AllowAny]  # TODO: заменить на авторизацию по токену/подписи
 
-    @swagger_auto_schema(request_body=GiftSerializer)
+    @extend_schema(
+        request=GiftSerializer,
+        responses={201: GiftSerializer},
+        summary="Добавление NFT подарка",
+        description="""
+        Добавляет NFT-подарок в инвентарь пользователя.
+        Если подарок с таким `ton_contract_address` уже существует — обновляет его данные.
+        """,
+    )
     def post(self, request):
-        logger.info("[UserAddsGift] Входящий POST-запрос на добавление подарка")
-        logger.info(f"[UserAddsGift] Headers: {request.headers}")
+        logger.info("[UserAddsGift] POST-запрос на добавление подарка")
         logger.info(f"[UserAddsGift] Body: {request.data}")
 
         try:
             data = request.data.copy()
-
-            if 'user' not in data:
-                data['user'] = request.user.id if request.user.is_authenticated else None
+            if "user" not in data:
+                data["user"] = request.user.id if request.user.is_authenticated else None
                 logger.info(f"[UserAddsGift] user_id взят из request.user: {data['user']}")
             else:
                 logger.info(f"[UserAddsGift] user_id явно передан: {data['user']}")
 
             serializer = GiftSerializer(data=data, context={"request": request})
-            if not serializer.is_valid():
-                logger.error(f"[UserAddsGift] Ошибка валидации: {serializer.errors}")
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            serializer.is_valid(raise_exception=True)
 
             gift = serializer.save()
-            logger.info(f"[UserAddsGift] 🎁 Подарок успешно сохранён: {gift.id} ({gift.name})")
+            logger.info(f"[UserAddsGift] 🎁 Подарок сохранён: {gift.id} ({gift.name})")
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
-            logger.exception(f"[UserAddsGift] ❌ Неожиданная ошибка: {e}")
+            logger.exception(f"[UserAddsGift] ❌ Ошибка: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -65,18 +76,19 @@ class WithdrawalOfNFT(APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        operation_summary="Вывод NFT подарка",
-        operation_description="""
-        Позволяет пользователю вывести NFT из своего инвентаря.
-        После успешного вывода подарок удаляется из базы данных.
-        """,
-        request_body=GiftWithdrawSerializer,
+    @extend_schema(
+        request=GiftWithdrawSerializer,
         responses={
-            200: openapi.Response(description="Успешный вывод NFT"),
-            403: openapi.Response(description="Подарок не принадлежит пользователю"),
-            404: openapi.Response(description="Подарок не найден"),
+            200: openapi_schema := {"type": "object", "properties": {"detail": {"type": "string"}}},
+            403: openapi_schema,
+            404: openapi_schema,
         },
+        summary="Вывод NFT подарка",
+        description="""
+        Позволяет пользователю **вывести NFT из инвентаря**.  
+        После успешного вывода NFT удаляется из базы данных.  
+        В будущем сюда можно добавить интеграцию с TON blockchain.
+        """,
     )
     def post(self, request, *args, **kwargs):
         serializer = GiftWithdrawSerializer(data=request.data)
