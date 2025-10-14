@@ -77,18 +77,17 @@ class WithdrawalOfNFT(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
+        summary="Вывод NFT подарка",
+        description="Позволяет пользователю вывести NFT из своего инвентаря. После успешного вывода подарок удаляется из базы данных.",
         request=GiftWithdrawSerializer,
         responses={
-            200: openapi_schema := {"type": "object", "properties": {"detail": {"type": "string"}}},
-            403: openapi_schema,
-            404: openapi_schema,
+            200: OpenApiResponse(
+                description="Успешный вывод NFT",
+                response={"type": "object", "properties": {"detail": {"type": "string"}}}
+            ),
+            403: OpenApiResponse(description="Подарок не принадлежит пользователю"),
+            404: OpenApiResponse(description="Подарок не найден"),
         },
-        summary="Вывод NFT подарка",
-        description="""
-        Позволяет пользователю **вывести NFT из инвентаря**.  
-        После успешного вывода NFT удаляется из базы данных.  
-        В будущем сюда можно добавить интеграцию с TON blockchain.
-        """,
     )
     def post(self, request, *args, **kwargs):
         serializer = GiftWithdrawSerializer(data=request.data)
