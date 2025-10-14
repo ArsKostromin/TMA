@@ -1,12 +1,15 @@
-# views.py
+# gifts/views.py
 import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework import status, generics
+from rest_framework import status, generics, permissions
 from drf_yasg.utils import swagger_auto_schema
-from .serializers import GiftSerializer
+from drf_yasg import openapi
+
+from .serializers import GiftSerializer, GiftWithdrawSerializer
 from .services.inventory import InventoryService
+from .services.withdrawal import GiftWithdrawalService
 
 logger = logging.getLogger(__name__)
 
@@ -54,3 +57,33 @@ class UserAddsGift(APIView):
         except Exception as e:
             logger.exception(f"[UserAddsGift] ❌ Неожиданная ошибка: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class WithdrawalOfNFT(APIView):
+    """
+    Эндпоинт для вывода (удаления) NFT-подарка.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Вывод NFT подарка",
+        operation_description="""
+        Позволяет пользователю вывести NFT из своего инвентаря.
+        После успешного вывода подарок удаляется из базы данных.
+        """,
+        request_body=GiftWithdrawSerializer,
+        responses={
+            200: openapi.Response(description="Успешный вывод NFT"),
+            403: openapi.Response(description="Подарок не принадлежит пользователю"),
+            404: openapi.Response(description="Подарок не найден"),
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = GiftWithdrawSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        gift_id = serializer.validated_data["gift_id"]
+        user = request.user
+
+        result = GiftWithdrawalService.withdraw_gift(user, gift_id)
+        return Response({"detail": result["detail"]}, status=result["status"])

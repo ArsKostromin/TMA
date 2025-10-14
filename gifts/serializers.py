@@ -89,3 +89,13 @@ class InventorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Gift._meta.get_field("user").related_model  # твоя User модель
         fields = ["id", "username", "gifts"]
+
+
+class GiftWithdrawSerializer(serializers.Serializer):
+    gift_id = serializers.IntegerField(required=True, help_text="ID подарка, который нужно вывести")
+
+    def validate_gift_id(self, value):
+        logger.debug(f"[GiftWithdrawSerializer] Проверка наличия подарка с ID={value}")
+        if not Gift.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Подарок с таким ID не найден.")
+        return value
