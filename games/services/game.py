@@ -282,3 +282,4 @@ class GameService:
             "win_amount_ton": f"{(total_equiv_decimal * (1 - game.commission_percent / Decimal('100'))):.2f}",
             "winner_chance_percent": str(winner.chance_percent) if winner.chance_percent else "0",
         }
+        
