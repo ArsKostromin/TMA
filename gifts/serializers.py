@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class GiftSerializer(serializers.ModelSerializer):
     backdrop_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    user = serializers.IntegerField(write_only=True, required=False)
+    # user = serializers.IntegerField(write_only=True, required=False)
 
     class Meta:
         model = Gift
