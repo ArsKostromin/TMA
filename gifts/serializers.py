@@ -8,13 +8,13 @@ logger = logging.getLogger(__name__)
 
 class GiftSerializer(serializers.ModelSerializer):
     backdrop_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    # user = serializers.IntegerField(write_only=True, required=False)
+    user_username = serializers.CharField(source='user.username', read_only=True)
 
     class Meta:
         model = Gift
         fields = [
             "id",
-            "user",
+            "user_username",
             "ton_contract_address",
             "name",
             "image_url",

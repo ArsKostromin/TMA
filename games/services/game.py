@@ -150,12 +150,23 @@ class GameService:
                 "gifts": [
                     {
                         "id": gift.id,
+                        "user_username": gift.user.username
                         "ton_contract_address": gift.ton_contract_address,
                         "name": gift.name,
                         "image_url": gift.image_url,
                         "price_ton": str(gift.price_ton),
                         "backdrop": gift.backdrop,
                         "symbol": gift.symbol,
+                        "model_name": gift.model_name,
+                        "pattern_name": gift.pattern_name,
+                        "model_rarity_permille": gift.model_rarity_permille,
+                        "pattern_rarity_permille": gift.pattern_rarity_permille,
+                        "backdrop_rarity_permille": gift.backdrop_rarity_permille,
+                        "model_original_details": gift.model_original_details,
+                        "pattern_original_details": gift.pattern_original_details,
+                        "backdrop_original_details": gift.backdrop_original_details,
+                        "rarity_level": gift.rarity_level,
+                        "backdrop_name": gift.backdrop_name,
                     }
                     for gift in p.gifts.all()
                 ],
