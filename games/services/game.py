@@ -150,7 +150,7 @@ class GameService:
                 "gifts": [
                     {
                         "id": gift.id,
-                        "user_username": gift.user.username
+                        "user_username": gift.user.username,
                         "ton_contract_address": gift.ton_contract_address,
                         "name": gift.name,
                         "image_url": gift.image_url,
