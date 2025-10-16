@@ -9,6 +9,8 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse
 from .serializers import GiftSerializer, GiftWithdrawSerializer
 from .services.inventory import InventoryService
 from .services.withdrawal import GiftWithdrawalService
+from .services.userbot_client import send_test_request_to_userbot
+
 
 logger = logging.getLogger(__name__)
 
@@ -78,15 +80,11 @@ class WithdrawalOfNFT(APIView):
 
     @extend_schema(
         summary="Вывод NFT подарка",
-        description="Позволяет пользователю вывести NFT из своего инвентаря. После успешного вывода подарок удаляется из базы данных.",
+        description="Тестовый вывод NFT — отправляет запрос в userbot, чтобы проверить связь.",
         request=GiftWithdrawSerializer,
         responses={
-            200: OpenApiResponse(
-                description="Успешный вывод NFT",
-                response={"type": "object", "properties": {"detail": {"type": "string"}}}
-            ),
-            403: OpenApiResponse(description="Подарок не принадлежит пользователю"),
-            404: OpenApiResponse(description="Подарок не найден"),
+            200: OpenApiResponse(description="Успешно отправлено в userbot"),
+            500: OpenApiResponse(description="Ошибка при взаимодействии с userbot"),
         },
     )
     def post(self, request, *args, **kwargs):
@@ -96,5 +94,19 @@ class WithdrawalOfNFT(APIView):
         gift_id = serializer.validated_data["gift_id"]
         user = request.user
 
-        result = GiftWithdrawalService.withdraw_gift(user, gift_id)
-        return Response({"detail": result["detail"]}, status=result["status"])
+        logger.info(f"📤 Пользователь {user} запросил вывод NFT ID={gift_id}")
+
+        payload = {
+            "user_id": user.id,
+            "username": user.username,
+            "gift_id": gift_id,
+        }
+
+        ok = send_test_request_to_userbot(payload)
+
+        if ok:
+            logger.info("🎯 Запрос успешно дошёл до userbot!")
+            return Response({"detail": "Запрос успешно отправлен в userbot"}, status=200)
+        else:
+            logger.error("💀 Не удалось связаться с userbot")
+            return Response({"detail": "Ошибка связи с userbot"}, status=500)
