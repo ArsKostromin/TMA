@@ -129,6 +129,39 @@ class Gift(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
 
+    #для отправки подарка пользователю
+    peer_id = models.BigIntegerField(
+        verbose_name="Редкость Фона (permille)",
+        null=True,
+        blank=True,
+        help_text="Используется для InvokeWithMsgId при дарении гифта"
+    )
+    msg_id = models.BigIntegerField(
+        verbose_name="ID сообщения с подарком (msg_id)",
+        null=True,
+        blank=True,
+        help_text="ID конкретного сообщения, где лежит подарок"
+    )
+    access_hash = models.BigIntegerField(
+        verbose_name="Access Hash чата (access_hash)",
+        null=True,
+        blank=True,
+        help_text="Нужен для доступа к чату/пользователю через Telethon"
+    )
+    sender_id = models.BigIntegerField(
+        verbose_name="ID пользователя, приславшего подарок (sender_id)",
+        null=True,
+        blank=True,
+        help_text="Telegram ID отправителя гифта"
+    )
+    chat_name = models.CharField(
+        max_length=255,
+        verbose_name="Название чата или имя источника (chat_name)",
+        null=True,
+        blank=True,
+        help_text="Имя чата, откуда пришёл подарок"
+    )
+    
     class Meta:
         verbose_name = "NFT Подарок"
         verbose_name_plural = "NFT Подарки"
