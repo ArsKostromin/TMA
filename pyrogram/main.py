@@ -1,42 +1,63 @@
 """
-Главная точка входа для Pyrogram UserBot
-Инициализирует клиента, проходит авторизацию и запускает вспомогательные модули
+Главная точка входа для Pyrogram Userbot
+Запускает инициализацию и работу userbot'а
 """
+
 import asyncio
 import logging
-from pyrogram import Client
-from config import API_ID, API_HASH, PHONE_NUMBER, SESSION_PATH, LOGIN_CODE
-from core.auth_handler import ensure_login
-from core.telegram_client import run_telegram_client
+import os
+import signal
+import sys
+from core.bot import main_userbot
 
-
-# --- Логирование ---
+# --- Настройка логов ---
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(message)s",
-    level=logging.INFO
+    level=logging.INFO,
 )
+logger = logging.getLogger(__name__)
+
+# --- Грейсфул-шатдаун для Docker ---
+def handle_sigterm(*_):
+    logger.warning("🛑 Получен сигнал остановки (SIGTERM). Завершаю работу...")
+    sys.exit(0)
+
+
+async def run_userbot():
+    """
+    Запуск userbot с защитой от крэшей
+    """
+    try:
+        await main_userbot()
+    except Exception as e:
+        logger.exception(f"💥 Критическая ошибка в userbot: {e}")
+        await asyncio.sleep(5)
 
 
 async def main():
-    logging.info("🚀 Запуск Pyrogram Userbot...")
+    """
+    Главная точка входа
+    """
+    logger.info("🚀 Запуск Pyrogram Userbot...")
 
-    # Инициализация клиента
-    app = Client(
-        SESSION_PATH,
-        api_id=API_ID,
-        api_hash=API_HASH
-    )
+    # Обработка сигналов для Docker
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, handle_sigterm)
+        except NotImplementedError:
+            # Windows не поддерживает add_signal_handler
+            pass
 
-    # --- Авторизация ---
-    await ensure_login(app, PHONE_NUMBER, LOGIN_CODE)
-
-    # --- Подключение клиента ---
-    async with app:
-        logging.info("✅ Userbot успешно вошёл в Telegram.")
-        await run_telegram_client(app)
-
-    logging.info("🛑 Работа Pyrogram завершена.")
+    # Основной цикл — бот сам перезапускается при вылете
+    while True:
+        await run_userbot()
+        logger.warning("🔁 Перезапуск userbot через 5 секунд...")
+        await asyncio.sleep(5)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("👋 Работа завершена пользователем.")
