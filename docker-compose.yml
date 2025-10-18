@@ -103,56 +103,56 @@ services:
     networks:
       - SG-network
 
-  userbot:
-    build:
-      context: ./userbot
-    container_name: SG-userbot
-    restart: unless-stopped
-    volumes:
-      - ./userbot/session:/app/session
-      # 💡 ИЗМЕНЕНИЕ: Добавляем общую media-папку
-      - ./media:/app/media
-    environment:
-      - API_ID=${API_ID}
-      - API_HASH=${API_HASH}
-      - PHONE_NUMBER=${PHONE_NUMBER}
-      - LOGIN_CODE=${LOGIN_CODE}
-      - API_BASE_URL=${API_BASE_URL:-http://web:8000}
-      - API_TOKEN=${API_TOKEN}
-      - USER_ID=${USER_ID}
-    networks:
-      - SG-network
-
-
   # userbot:
-  #   # Контекст сборки: предполагаем, что Dockerfile, main.py и requirements.txt
-  #   # находятся внутри папки ./userbot
   #   build:
-  #     context: ./pyrogram 
-      
+  #     context: ./userbot
   #   container_name: SG-userbot
   #   restart: unless-stopped
-  #   # Маппинг портов: 8080 - это порт, на котором слушает Uvicorn (FastAPI) внутри контейнера
-  #   ports:
-  #     - "8080:8080"
   #   volumes:
-  #     # Хранение сессии Pyrogram. Файл сессии будет создан внутри этой папки.
-  #     - ./session:/app/session
-  #     # Общая папка для медиа, как вы просили
+  #     - ./userbot/session:/app/session
+  #     # 💡 ИЗМЕНЕНИЕ: Добавляем общую media-папку
   #     - ./media:/app/media
-      
-  #   # Переменные окружения для Pyrogram (API_ID, API_HASH) и FastAPI (API_TOKEN)
   #   environment:
   #     - API_ID=${API_ID}
   #     - API_HASH=${API_HASH}
-  #     - PHONE_NUMBER=${PHONE_NUMBER} # Нужен Pyrogram для первого входа
-  #     - LOGIN_CODE=${LOGIN_CODE}     # Нужен для первого входа, если Pyrogram не может запросить интерактивно
-  #     - API_BASE_URL=${API_BASE_URL:-http://userbot:8080} # Изменено на userbot:8080, так как это имя сервиса
+  #     - PHONE_NUMBER=${PHONE_NUMBER}
+  #     - LOGIN_CODE=${LOGIN_CODE}
+  #     - API_BASE_URL=${API_BASE_URL:-http://web:8000}
   #     - API_TOKEN=${API_TOKEN}
   #     - USER_ID=${USER_ID}
-      
   #   networks:
   #     - SG-network
+
+
+  userbot:
+    # Контекст сборки: предполагаем, что Dockerfile, main.py и requirements.txt
+    # находятся внутри папки ./userbot
+    build:
+      context: ./pyrogram 
+      
+    container_name: SG-userbot
+    restart: unless-stopped
+    # Маппинг портов: 8080 - это порт, на котором слушает Uvicorn (FastAPI) внутри контейнера
+    ports:
+      - "8080:8080"
+    volumes:
+      # Хранение сессии Pyrogram. Файл сессии будет создан внутри этой папки.
+      - ./session:/app/session
+      # Общая папка для медиа, как вы просили
+      - ./media:/app/media
+      
+    # Переменные окружения для Pyrogram (API_ID, API_HASH) и FastAPI (API_TOKEN)
+    environment:
+      - API_ID=${API_ID}
+      - API_HASH=${API_HASH}
+      - PHONE_NUMBER=${PHONE_NUMBER} # Нужен Pyrogram для первого входа
+      - LOGIN_CODE=${LOGIN_CODE}     # Нужен для первого входа, если Pyrogram не может запросить интерактивно
+      - API_BASE_URL=${API_BASE_URL:-http://userbot:8080} # Изменено на userbot:8080, так как это имя сервиса
+      - API_TOKEN=${API_TOKEN}
+      - USER_ID=${USER_ID}
+      
+    networks:
+      - SG-network
 
 networks:
   SG-network:
