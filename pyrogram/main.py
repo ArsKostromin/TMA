@@ -49,9 +49,9 @@ async def main():
             # Windows не умеет add_signal_handler, поэтому молчим
             pass
 
-    # # Основной цикл перезапуска
-    # while True:
-    #     await run_userbot()
+    # Основной цикл перезапуска
+    while True:
+        await run_userbot()
     #     logger.warning("🔁 Перезапуск userbot через 5 секунд...")
     #     await asyncio.sleep(5)
 
