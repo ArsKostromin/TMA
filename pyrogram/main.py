@@ -6,8 +6,8 @@ import asyncio
 import logging
 from pyrogram import Client
 from config import API_ID, API_HASH, PHONE_NUMBER, SESSION_PATH, LOGIN_CODE
-from bot.auth_handler import ensure_login
-from bot.telegram_client import run_telegram_client
+from core.auth_handler import ensure_login
+from core.telegram_client import run_telegram_client
 
 
 # --- Логирование ---
