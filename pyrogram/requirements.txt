@@ -4,3 +4,4 @@ fastapi
 pydantic
 python-dotenv
 Kurigram==2.2.13
+requests

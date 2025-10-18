@@ -12,7 +12,7 @@ except ImportError:
 # Импортируем функции из новой папки auth
 from .auth.telegram_client import create_client
 from .auth.auth_handler import run_client
-from .sender_gift.sender import send_gift_to_user  # 👈 добавили импорт
+from gift_listener.gifts_listener import register_gift_listener, process_chat_history
 
 # Настройка логирования
 logging.basicConfig(
@@ -36,14 +36,16 @@ async def main_userbot():
         await app.start()
         logger.info("🚀 Pyrogram Userbot запущен успешно!")
 
-        # 3. 🎁 Отправляем подарок при старте
-        peer_id = 1207534564  # ID получателя (jhgvcbcg)
-        gift_id = 5852757491946882427  # ID гифта SnakeBox-29826
+        # 3. 🎁 Регистрируем обработчик новых гифтов
+        register_gift_listener(app)
+        logger.info("🎁 Обработчик новых гифтов зарегистрирован!")
 
-        logger.info("🎁 Пытаемся отправить подарок при старте...")
-        await send_gift_to_user(app, peer_id, gift_id)
+        # 4. 📜 Сканируем историю на предмет непрочитанных гифтов
+        logger.info("📜 Начинаю сканирование истории на предмет непрочитанных гифтов...")
+        await process_chat_history(app)
+        logger.info("📜 Сканирование истории завершено!")
 
-        # 4. После отправки — продолжаем обычную работу
+        # 5. После обработки — продолжаем обычную работу
         await run_client(app)
 
     except ValueError as e:
