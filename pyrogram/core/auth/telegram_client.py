@@ -1,5 +1,6 @@
 import logging
 import os
+import sqlite3  # <-- вот его и не хватало
 from pyrogram import Client
 from pyrogram.errors import (
     SessionPasswordNeeded,
@@ -11,6 +12,7 @@ from pyrogram.errors import (
 from config import API_ID, API_HASH, PHONE_NUMBER, LOGIN_CODE, SESSION_PATH
 
 logger = logging.getLogger(__name__)
+
 
 async def initialize_client():
     """
