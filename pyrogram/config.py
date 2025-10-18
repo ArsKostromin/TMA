@@ -30,9 +30,3 @@ LOG_LEVEL = 'INFO'  # Уровень логирования (DEBUG, INFO, WARNIN
 # ПУТИ К ФАЙЛАМ
 # Путь к файлу сессии Telegram
 SESSION_PATH = "session/userbot"
-
-# TDLib НАСТРОЙКИ
-TDLIB_LIBRARY_PATH = os.getenv("TDLIB_LIBRARY_PATH", "./tdlib/libtdjson.so")
-TDLIB_DATABASE_DIR = os.getenv("TDLIB_DATABASE_DIR", "tdlib_database")
-TDLIB_FILES_DIR = os.getenv("TDLIB_FILES_DIR", "tdlib_files")
-TDLIB_USE_TEST_DC = os.getenv("TDLIB_USE_TEST_DC", "False").lower() in ("true", "1", "yes")
