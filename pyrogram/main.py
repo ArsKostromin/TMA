@@ -35,7 +35,7 @@ async def main():
         try:
             loop.add_signal_handler(sig, handle_sigterm)
         except NotImplementedError:
-            pass  # Windows, не ругайся
+            pass
 
     # Просто запускаем один раз и ждём
     try:
