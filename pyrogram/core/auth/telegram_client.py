@@ -1,48 +1,32 @@
-"""
-Создание и инициализация Pyrogram клиента
-"""
-import os
 import logging
+import os
 from pyrogram import Client
-from config import API_ID, API_HASH, SESSION_PATH, PHONE_NUMBER, LOGIN_CODE
-from .auth_handler import authorize_with_code, check_authorization_status
+from pyrogram.errors import (
+    SessionPasswordNeeded,
+    PhoneCodeInvalid,
+    PhoneCodeExpired,
+    FloodWait,
+    BadRequest
+)
+from config import API_ID, API_HASH, PHONE_NUMBER, LOGIN_CODE, SESSION_PATH
 
 logger = logging.getLogger(__name__)
-
-
-def create_client():
-    """
-    Создаёт клиент Pyrogram
-    """
-    if not API_ID or not API_HASH:
-        raise ValueError("❌ Не заданы API_ID и API_HASH в окружении.")
-
-    session_file = SESSION_PATH if SESSION_PATH.endswith(".session") else f"{SESSION_PATH}.session"
-    session_exists = os.path.exists(session_file)
-    if session_exists:
-        logger.info(f"🗝️ Найден файл сессии: {session_file}")
-    else:
-        logger.warning("⚠️ Сессия отсутствует — требуется авторизация по коду.")
-
-    return Client(
-        SESSION_PATH,
-        api_id=int(API_ID),
-        api_hash=API_HASH
-    )
-
-
 
 async def initialize_client():
     """
     Полностью автоматическая авторизация Pyrogram без input().
-    Все данные берутся из config.py (переменных окружения).
+    Все данные берутся из config.py / .env
     """
+    app = None
     try:
         logger.info("🚀 Инициализация Pyrogram клиента...")
 
-        # имя сессии без .session
+        # создаём клиент
         session_name = SESSION_PATH.replace(".session", "")
         session_dir = os.path.dirname(SESSION_PATH) or "."
+
+        # убедимся что директория для сессии существует
+        os.makedirs(session_dir, exist_ok=True)
 
         app = Client(
             name=session_name,
@@ -51,8 +35,10 @@ async def initialize_client():
             workdir=session_dir
         )
 
+        # пробуем подключиться
         await app.connect()
 
+        # если уже авторизован
         try:
             me = await app.get_me()
             if me:
@@ -61,6 +47,7 @@ async def initialize_client():
         except Exception:
             pass
 
+        # если нет авторизации — авторизуемся через код
         if not PHONE_NUMBER:
             raise ValueError("❌ PHONE_NUMBER не указан в переменных окружения")
 
@@ -81,13 +68,20 @@ async def initialize_client():
     except PhoneCodeExpired:
         logger.error("❌ Код авторизации истёк. Получи новый и перезапусти.")
     except SessionPasswordNeeded:
-        logger.error("❌ Включена 2FA. Нужно добавить пароль (не реализовано).")
+        logger.error("❌ Включена 2FA. Добавь парольную авторизацию (ещё не реализовано).")
+    except FloodWait as e:
+        logger.error(f"⏳ Telegram просит подождать {e.value} секунд.")
+    except BadRequest as e:
+        logger.error(f"🚫 Telegram отказал: {e}")
+    except sqlite3.OperationalError as e:
+        logger.error(f"📁 Ошибка доступа к файлу сессии: {e}")
     except Exception as e:
-        logger.error(f"💥 Ошибка при инициализации клиента: {e}")
+        logger.error(f"💥 Критическая ошибка в userbot: {e}")
     finally:
-        try:
-            await app.disconnect()
-        except Exception:
-            pass
+        if app:
+            try:
+                await app.disconnect()
+            except Exception:
+                pass
 
     return None
