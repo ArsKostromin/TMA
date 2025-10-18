@@ -128,7 +128,7 @@ services:
     # Контекст сборки: предполагаем, что Dockerfile, main.py и requirements.txt
     # находятся внутри папки ./userbot
     build:
-      context: ./userbot 
+      context: ./pyrogram 
       
     container_name: SG-userbot
     restart: unless-stopped
