@@ -1,22 +1,42 @@
+"""
+Главная точка входа для Pyrogram UserBot
+Инициализирует клиента, проходит авторизацию и запускает вспомогательные модули
+"""
 import asyncio
 import logging
-# Удалены импорты threading, uvicorn и api.server.
-from config import LOG_FORMAT, LOG_DATE_FORMAT, LOG_LEVEL
-from bot import main_userbot  # Изменено: core.bot -> bot
+from pyrogram import Client
+from config import API_ID, API_HASH, PHONE_NUMBER, SESSION_PATH, LOGIN_CODE
+from bot.auth_handler import ensure_login
+from bot.telegram_client import run_telegram_client
 
-# Настройка логов
-logging.basicConfig(format=LOG_FORMAT, level=getattr(logging, LOG_LEVEL), datefmt=LOG_DATE_FORMAT)
-logger = logging.getLogger(__name__)
+
+# --- Логирование ---
+logging.basicConfig(
+    format="%(asctime)s | %(levelname)s | %(message)s",
+    level=logging.INFO
+)
+
+
+async def main():
+    logging.info("🚀 Запуск Pyrogram Userbot...")
+
+    # Инициализация клиента
+    app = Client(
+        SESSION_PATH,
+        api_id=API_ID,
+        api_hash=API_HASH
+    )
+
+    # --- Авторизация ---
+    await ensure_login(app, PHONE_NUMBER, LOGIN_CODE)
+
+    # --- Подключение клиента ---
+    async with app:
+        logging.info("✅ Userbot успешно вошёл в Telegram.")
+        await run_telegram_client(app)
+
+    logging.info("🛑 Работа Pyrogram завершена.")
+
 
 if __name__ == "__main__":
-    logger.info("🚀 Приложение запущено. Начинаю запуск Userbot.")
-    
-    # Запуск userbot'а в основном асинхронном потоке.
-    try:
-        asyncio.run(main_userbot())
-    except KeyboardInterrupt:
-        logger.info("👋 Получен сигнал прерывания (Ctrl+C). Завершение работы.")
-    except Exception as e:
-        logger.error(f"❌ Критическая ошибка в основном цикле asyncio: {e}")
-    finally:
-        logger.info("😴 Завершение работы Userbot.")
+    asyncio.run(main())

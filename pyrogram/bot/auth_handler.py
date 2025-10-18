@@ -1,38 +1,36 @@
-# pyrogram/core/auth_handler.py
-
+"""
+auth_handler.py — модуль авторизации Pyrogram-клиента
+Если сессия отсутствует — проходит логин через телефон и код
+"""
+import asyncio
 import logging
-from pyrogram import Client
-from pyrogram.errors import SessionPasswordNeeded, PhoneCodeInvalid, PhoneCodeEmpty
+from pyrogram.errors import SessionPasswordNeeded
 
-logger = logging.getLogger(__name__)
 
-async def check_authorization_status(client: Client) -> bool:
+async def ensure_login(app, phone_number: str, code: str | None = None):
     """
-    Проверяет, авторизован ли клиент (в Pyrogram это можно сделать через get_me
-    или просто через try/except при запуске).
-    Здесь мы просто проверим, есть ли информация о пользователе.
+    Проверяет логин и, если нужно, проходит авторизацию
     """
+    if await app.connect():
+        try:
+            me = await app.get_me()
+            logging.info(f"👤 Уже авторизован как {me.first_name} (@{me.username})")
+            return
+        except Exception:
+            pass  # не залогинен — продолжаем
+
+    logging.info("📱 Авторизация через Pyrogram...")
+
+    sent = await app.send_code(phone_number)
+    if not code:
+        code = input("🔑 Введи код из Telegram: ")
+
     try:
-        # Пытаемся получить информацию о себе
-        me = await client.get_me()
-        return me is not None
-    except Exception:
-        # Если клиент не запущен/не авторизован, get_me вызовет ошибку
-        return False
+        await app.sign_in(phone_number, sent.phone_code_hash, code)
+    except SessionPasswordNeeded:
+        pw = input("🔐 Введи пароль 2FA: ")
+        await app.check_password(pw)
 
-async def authorize_with_code(client: Client) -> bool:
-    """
-    Pyrogram автоматически запросит код, если сессии нет.
-    Мы просто запускаем цикл ввода данных.
-    
-    ВНИМАНИЕ: Для реальной работы вам нужно реализовать
-    интерактивный ввод с консоли (input()). 
-    Здесь мы делаем заглушку, поскольку Pyrogram в режиме Client 
-    автоматически выводит запросы в консоль при client.start().
-    
-    В этом коде мы предполагаем, что запуск client.start()
-    в initialize_client сам справится с авторизацией,
-    если это первый запуск.
-    """
-    logger.info("ℹ️ Для первого запуска Pyrogram сам выведет запросы в консоль.")
-    return True
+    me = await app.get_me()
+    logging.info(f"✅ Вход выполнен как {me.first_name} (@{me.username})")
+    await app.disconnect()
