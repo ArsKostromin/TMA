@@ -15,9 +15,9 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(message)s",
     level=logging.INFO,
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("pyrogram-main")
 
-# --- Грейсфул-шатдаун для Docker ---
+# --- Обработка сигнала SIGTERM / SIGINT ---
 def handle_sigterm(*_):
     logger.warning("🛑 Получен сигнал остановки (SIGTERM). Завершаю работу...")
     sys.exit(0)
@@ -25,7 +25,7 @@ def handle_sigterm(*_):
 
 async def run_userbot():
     """
-    Запуск userbot с защитой от крэшей
+    Обёртка, запускающая userbot и отлавливающая ошибки
     """
     try:
         await main_userbot()
@@ -36,20 +36,20 @@ async def run_userbot():
 
 async def main():
     """
-    Главная точка входа
+    Главная корутина — точка входа
     """
     logger.info("🚀 Запуск Pyrogram Userbot...")
 
-    # Обработка сигналов для Docker
+    # Добавляем обработку сигналов для Docker
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
         try:
             loop.add_signal_handler(sig, handle_sigterm)
         except NotImplementedError:
-            # Windows не поддерживает add_signal_handler
+            # Windows не умеет add_signal_handler, поэтому молчим
             pass
 
-    # Основной цикл — бот сам перезапускается при вылете
+    # Основной цикл перезапуска
     while True:
         await run_userbot()
         logger.warning("🔁 Перезапуск userbot через 5 секунд...")
