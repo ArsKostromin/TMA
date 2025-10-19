@@ -166,7 +166,7 @@ class GameService:
                         "pattern_original_details": gift.pattern_original_details,
                         "backdrop_original_details": gift.backdrop_original_details,
                         "rarity_level": gift.rarity_level,
-                        "backdrop_name": gift.backdrop_name,
+                        "backdrop": gift.backdrop,
                     }
                     for gift in p.gifts.all()
                 ],
