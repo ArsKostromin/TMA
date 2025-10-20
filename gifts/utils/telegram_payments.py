@@ -1,53 +1,49 @@
+# gifts/utils/telegram_payments.py
 import logging
 import requests
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-
 def create_stars_invoice(user, gift_id: int, amount: int = 25):
     """
-    Создаёт Telegram Stars-инвойс (оплата XTR) пользователю за вывод NFT.
-    Требует, чтобы у user был telegram_id и в settings.bot_token был токен бота.
+    Создаёт Telegram Stars-инвойс пользователю за вывод NFT.
+    Требует у user: telegram_id.
     """
     bot_token = getattr(settings, "STAR_TOKEN", None)
     if not bot_token:
-        logger.error("❌ В settings.py отсутствует bot_token", settings.star_token)
+        logger.error("❌ В settings.py отсутствует star_token (None)")
+        return {"ok": False, "error": "star_token отсутствует"}
 
-        return {"ok": False, "error": "bot_token отсутствует"}
-
-    if not hasattr(user, "telegram_id") or not user.telegram_id:
+    chat_id = getattr(user, "telegram_id", None)
+    if not chat_id:
         logger.error(f"🚫 У пользователя {user.id} нет telegram_id")
-        return {"ok": False, "error": "У пользователя нет telegram_id"}
+        return {"ok": False, "error": "telegram_id отсутствует"}
 
-    tg_url = f"https://api.telegram.org/bot{bot_token}/sendInvoice"
+    url = f"https://api.telegram.org/bot{bot_token}/sendInvoice"
+
     payload = {
-        "chat_id": user.telegram_id,
-        "title": "Вывод NFT подарка",
-        "description": f"Оплата комиссии  {amount}⭐ за вывод подарка",
-        "payload": f"withdraw_{gift_id}_{user.id}",
-        "provider_token": "", 
+        "chat_id": chat_id,
+        "title": "Оплата вывода NFT",
+        "description": f"Вывод подарка #{gift_id}. Комиссия 25 звёзд ⭐",
+        "payload": f"withdraw_gift_{gift_id}",
+        "provider_token": "",  # для Stars — оставить пустым!
         "currency": "XTR",
-        "prices": [{"label": "Комиссия за вывод", "amount": amount}],
-        "start_parameter": f"withdraw_{gift_id}",
+        "prices": [{"label": "Комиссия", "amount": amount}],
+        "max_tip_amount": 0,
+        "suggested_tip_amounts": [],
     }
 
     try:
-        r = requests.post(tg_url, json=payload)
+        r = requests.post(url, json=payload)
         r.raise_for_status()
-        result = r.json()
-
-        if not result.get("ok"):
-            logger.error(f"💀 Ошибка Telegram API при создании инвойса: {result}")
-            return {"ok": False, "error": result}
-
-        logger.info(f"💫 Инвойс на {amount}⭐ успешно отправлен пользователю {user.username}")
-        return {
-            "ok": True,
-            "data": result.get("result", {}),
-            "payload": payload,
-        }
-
+        data = r.json()
+        logger.info(f"✅ Инвойс успешно создан: {data}")
+        return data
     except requests.RequestException as e:
-        logger.exception("💀 Ошибка при запросе к Telegram API")
-        return {"ok": False, "error": str(e)}
+        try:
+            err_data = r.json()
+        except Exception:
+            err_data = str(e)
+        logger.error(f"💀 Не удалось создать инвойс: {e} | Ответ: {err_data}")
+        return {"ok": False, "error": str(e), "details": err_data}
