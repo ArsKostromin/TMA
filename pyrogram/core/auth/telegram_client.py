@@ -3,10 +3,9 @@
 import logging
 from pyrogram import Client
 
-# Логгер, который будет использоваться
 logger = logging.getLogger("pyrogram-main")
 
-# Глобальная переменная для клиента (опционально, но удобно)
+# Глобальная переменная для клиента 
 app: Client = None
 
 def create_client(config):
@@ -26,7 +25,6 @@ def create_client(config):
 
     logger.info("Инициализация клиента Pyrogram...")
     logger.info(config.PHONE_NUMBER)
-    # 'name' - это путь к файлу сессии (без .session)
     app = Client(
         name=config.SESSION_PATH,
         api_id=config.API_ID,
