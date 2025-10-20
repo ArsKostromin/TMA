@@ -13,7 +13,7 @@ API_HASH = os.getenv("API_HASH")
 # Номер телефона в международном формате (например: +1234567890)
 PHONE_NUMBER = os.getenv("PHONE_NUMBER")
 # Код авторизации из SMS (получается автоматически при первом запуске)
-LOGIN_CODE = os.getenv("LOGIN_CODE")
+# LOGIN_CODE = os.getenv("LOGIN_CODE")
 
 # DJANGO API НАСТРОЙКИ
 # URL Django API (по умолчанию web:8000 для Docker)
