@@ -12,7 +12,8 @@ def create_stars_invoice(user, gift_id: int, amount: int = 25):
     """
     bot_token = getattr(settings, "star_token", None)
     if not bot_token:
-        logger.error("❌ В settings.py отсутствует bot_token")
+        logger.error("❌ В settings.py отсутствует bot_token", settings.star_token)
+
         return {"ok": False, "error": "bot_token отсутствует"}
 
     if not hasattr(user, "telegram_id") or not user.telegram_id:
