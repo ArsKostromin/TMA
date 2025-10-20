@@ -10,6 +10,8 @@ WORKDIR /app
 
 # Копирование файла требований и их установка
 COPY requirements.txt /app/
+
+RUN apt-get update && apt-get install -y gcc python3-dev
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Копирование всего остального кода приложения
