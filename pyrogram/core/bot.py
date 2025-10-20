@@ -12,7 +12,7 @@ except ImportError:
 # Импортируем функции из новой папки auth
 from .auth.telegram_client import create_client
 from .auth.auth_handler import run_client
-from gift_listener.gifts_listener import register_gift_listener, process_chat_history
+from .gift_listener.gifts_listener import register_gift_listener, process_chat_history
 
 # Настройка логирования
 logging.basicConfig(
