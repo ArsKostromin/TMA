@@ -26,7 +26,7 @@ def create_stars_invoice(user, gift_id: int, amount: int = 25):
         "title": "Вывод NFT подарка",
         "description": f"Оплата комиссии  {amount}⭐ за вывод подарка",
         "payload": f"withdraw_{gift_id}_{user.id}",
-        "provider_token": "8289114704:AAEQMbFEz0uzwmtUh6s4Eg4-PEOE2T1WxQY", 
+        "provider_token": "", 
         "currency": "XTR",
         "prices": [{"label": "Комиссия за вывод", "amount": amount}],
         "start_parameter": f"withdraw_{gift_id}",
