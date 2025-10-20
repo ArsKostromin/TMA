@@ -10,7 +10,7 @@ def create_stars_invoice(user, gift_id: int, amount: int = 25):
     Создаёт Telegram Stars-инвойс (оплата XTR) пользователю за вывод NFT.
     Требует, чтобы у user был telegram_id и в settings.bot_token был токен бота.
     """
-    bot_token = getattr(settings, "star_token", None)
+    bot_token = getattr(settings, "STAR_TOKEN", None)
     if not bot_token:
         logger.error("❌ В settings.py отсутствует bot_token", settings.star_token)
 
