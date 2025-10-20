@@ -1,4 +1,4 @@
-# test_client_manual_v2.py
+# test_client_manual_fixed.py
 import logging
 import os
 from pyrogram import Client
@@ -21,7 +21,7 @@ print("[INFO] Создаём клиента Pyrogram...")
 app = Client(
     name=SESSION_PATH,
     api_id=API_ID,
-    api_hash=API_HASH
+    api_hash=API_HASH,
 )
 
 print("[INFO] Запускаем ручную авторизацию...")
@@ -29,20 +29,27 @@ print("[INFO] Запускаем ручную авторизацию...")
 try:
     app.connect()
 
-    # если сессии нет, просим код и логинимся
-    if not app.load_session():
-        print("[ACTION] Запрашиваю код подтверждения...")
-        sent_code = app.send_code(PHONE_NUMBER)
+    # Проверяем: если не авторизован — проходим логин
+    authorized = False
+    try:
+        me = app.get_me()
+        authorized = True
+        print(f"[INFO] Уже авторизован как {me.first_name}")
+    except Exception:
+        print("[ACTION] Сессия невалидна — начинаем ручной вход...")
 
+    if not authorized:
+        sent_code = app.send_code(PHONE_NUMBER)
         code = input("[INPUT] Введите код подтверждения из Telegram: ").strip()
+
         try:
             app.sign_in(PHONE_NUMBER, code)
         except SessionPasswordNeeded:
             password = input("[INPUT] Введите пароль 2FA: ").strip()
             app.check_password(password)
 
-    me = app.get_me()
-    print(f"[SUCCESS] Вошли как: {me.first_name} (@{me.username})")
+        me = app.get_me()
+        print(f"[SUCCESS] Вошли как {me.first_name} (@{me.username})")
 
 finally:
     app.disconnect()
