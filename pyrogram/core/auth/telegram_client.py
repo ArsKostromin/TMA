@@ -25,7 +25,7 @@ def create_client(config):
         raise ValueError("Phone number missing.")
 
     logger.info("Инициализация клиента Pyrogram...")
-
+    logger.info(config.PHONE_NUMBER)
     # 'name' - это путь к файлу сессии (без .session)
     app = Client(
         name=config.SESSION_PATH,

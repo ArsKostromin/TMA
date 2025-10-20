@@ -32,7 +32,7 @@ async def main_userbot():
         # 1. Создаем объект клиента
         app = create_client(config)
         logger.info("Конфиг:")
-        logger.info(config)
+        logger.info(app)
 
         # 2. Запускаем клиента
         await app.start()
