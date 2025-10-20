@@ -10,6 +10,7 @@ from .serializers import GiftSerializer, GiftWithdrawSerializer
 from .services.inventory import InventoryService
 from .services.withdrawal import GiftWithdrawalService
 from .services.userbot_client import send_test_request_to_userbot
+from .utils.telegram_payments import create_stars_invoice
 
 
 logger = logging.getLogger(__name__)
@@ -75,16 +76,18 @@ class UserAddsGift(APIView):
 class WithdrawalOfNFT(APIView):
     """
     Эндпоинт для вывода (удаления) NFT-подарка.
+    Перед выполнением вывода — создаёт оплату на 25 звёзд (XTR).
     """
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-        summary="Вывод NFT подарка",
-        description="Тестовый вывод NFT — отправляет запрос в userbot, чтобы проверить связь.",
+        summary="Вывод NFT подарка с оплатой 25⭐",
+        description="Перед выводом NFT создаёт Telegram-инвойс на 25 звёзд (Stars).",
         request=GiftWithdrawSerializer,
         responses={
-            200: OpenApiResponse(description="Успешно отправлено в userbot"),
-            500: OpenApiResponse(description="Ошибка при взаимодействии с userbot"),
+            200: OpenApiResponse(description="Инвойс отправлен пользователю"),
+            400: OpenApiResponse(description="Ошибка данных"),
+            500: OpenApiResponse(description="Ошибка взаимодействия с Telegram или userbot"),
         },
     )
     def post(self, request, *args, **kwargs):
@@ -96,17 +99,24 @@ class WithdrawalOfNFT(APIView):
 
         logger.info(f"📤 Пользователь {user} запросил вывод NFT ID={gift_id}")
 
-        payload = {
+        # Создаём инвойс на 25 звёзд
+        invoice = create_stars_invoice(user, gift_id, amount=25)
+        if not invoice.get("ok"):
+            logger.error(f"💀 Не удалось создать инвойс: {invoice.get('error')}")
+            return Response(
+                {"detail": f"Ошибка при создании инвойса: {invoice.get('error')}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Отправляем уведомление userbot’у
+        send_test_request_to_userbot({
             "user_id": user.id,
             "username": user.username,
             "gift_id": gift_id,
-        }
+            "invoice_payload": invoice["payload"]["payload"],
+        })
 
-        ok = send_test_request_to_userbot(payload)
-
-        if ok:
-            logger.info("🎯 Запрос успешно дошёл до userbot!")
-            return Response({"detail": "Запрос успешно отправлен в userbot"}, status=200)
-        else:
-            logger.error("💀 Не удалось связаться с userbot")
-            return Response({"detail": "Ошибка связи с userbot"}, status=500)
+        return Response({
+            "detail": "Инвойс успешно отправлен пользователю в Telegram для оплаты 25⭐",
+            "invoice_message_id": invoice["data"].get("message_id"),
+        }, status=200)
