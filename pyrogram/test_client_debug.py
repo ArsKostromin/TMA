@@ -1,56 +1,77 @@
 # test_client_manual_fixed.py
 import logging
-import os
 from pyrogram import Client
 from pyrogram.errors import SessionPasswordNeeded
+import config  # ✅ импортируем твой конфиг, лежит рядом
 
+# -----------------------------
+# 🔥 Настраиваем логирование
+# -----------------------------
 logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
+    level=getattr(logging, config.LOG_LEVEL.upper(), logging.INFO),
+    format=config.LOG_FORMAT,
+    datefmt=config.LOG_DATE_FORMAT
 )
+logger = logging.getLogger("userbot")
 
-API_ID = int(os.getenv("API_ID"))
-API_HASH = os.getenv("API_HASH")
-PHONE_NUMBER = os.getenv("PHONE_NUMBER")
-SESSION_PATH = "session/test_userbot"
+# -----------------------------
+# 📦 Достаём конфиг
+# -----------------------------
+API_ID = int(config.API_ID)
+API_HASH = config.API_HASH
+PHONE_NUMBER = config.PHONE_NUMBER
+SESSION_PATH = config.SESSION_PATH
 
-print(f"[INFO] API_ID={API_ID}, PHONE={PHONE_NUMBER}")
-print("[INFO] Создаём клиента Pyrogram...")
+logger.info(f"API_ID={API_ID}, PHONE={PHONE_NUMBER}")
+logger.info("Создаём клиент Pyrogram...")
 
+# -----------------------------
+# 🚀 Инициализация клиента
+# -----------------------------
 app = Client(
     name=SESSION_PATH,
     api_id=API_ID,
-    api_hash=API_HASH,
+    api_hash=API_HASH
 )
 
-print("[INFO] Запускаем ручную авторизацию...")
+# -----------------------------
+# 🔐 Авторизация
+# -----------------------------
+logger.info("Запускаем ручную авторизацию...")
 
 try:
     app.connect()
 
-    # Проверяем: если не авторизован — проходим логин
     authorized = False
     try:
         me = app.get_me()
         authorized = True
-        print(f"[INFO] Уже авторизован как {me.first_name}")
+        logger.info(f"Уже авторизован как {me.first_name} (@{me.username})")
     except Exception:
-        print("[ACTION] Сессия невалидна — начинаем ручной вход...")
+        logger.warning("Сессия невалидна — начинаем ручной вход...")
 
     if not authorized:
         sent_code = app.send_code(PHONE_NUMBER)
+        phone_code_hash = sent_code.phone_code_hash
+        logger.info(f"Код отправлен на {PHONE_NUMBER}")
+
         code = input("[INPUT] Введите код подтверждения из Telegram: ").strip()
 
         try:
-            app.sign_in(PHONE_NUMBER, code)
+            app.sign_in(
+                phone_number=PHONE_NUMBER,
+                phone_code_hash=phone_code_hash,
+                phone_code=code
+            )
         except SessionPasswordNeeded:
             password = input("[INPUT] Введите пароль 2FA: ").strip()
             app.check_password(password)
 
         me = app.get_me()
-        print(f"[SUCCESS] Вошли как {me.first_name} (@{me.username})")
+        logger.info(f"[SUCCESS] Вошли как {me.first_name} (@{me.username})")
 
+except Exception as e:
+    logger.error(f"Критическая ошибка авторизации: {e}", exc_info=True)
 finally:
     app.disconnect()
-    print("[INFO] Клиент завершил работу.")
+    logger.info("Клиент завершил работу.")
