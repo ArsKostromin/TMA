@@ -51,7 +51,7 @@ async def process_chat_history(client):
         total_scanned_chats += 1
         
         # Проверяем наличие непрочитанных сообщений в диалоге
-        if dialog.unread_count == 0:
+        if dialog.unread_messages_count == 0:
             continue
         
         logger.info(f"🔎 Сканирование НЕПРОЧИТАННОЙ истории чата: '{chat_title}' (Непрочитанных: {dialog.unread_count})")
