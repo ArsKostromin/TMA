@@ -9,6 +9,7 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse
 from .serializers import GiftSerializer, GiftWithdrawSerializer
 from .services.inventory import InventoryService
 from .services.withdrawal import GiftWithdrawalService
+from .services.withdrawal_request import GiftWithdrawalRequestService
 from .services.userbot_client import send_test_request_to_userbot
 from .utils.telegram_payments import create_stars_invoice
 
@@ -75,19 +76,21 @@ class UserAddsGift(APIView):
 
 class WithdrawalOfNFT(APIView):
     """
-    Эндпоинт для вывода (удаления) NFT-подарка.
-    Перед выполнением вывода — создаёт оплату на 25 звёзд (XTR).
+    Эндпоинт для создания запроса на вывод NFT-подарка.
+    Создает запрос на вывод и отправляет инвойс на оплату 25 звёзд.
     """
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-        summary="Вывод NFT подарка с оплатой 25⭐",
-        description="Перед выводом NFT создаёт Telegram-инвойс на 25 звёзд (Stars).",
+        summary="Создание запроса на вывод NFT подарка",
+        description="Создает запрос на вывод NFT и отправляет инвойс на оплату 25 звёзд. Подарок будет выведен только после успешной оплаты.",
         request=GiftWithdrawSerializer,
         responses={
-            200: OpenApiResponse(description="Инвойс отправлен пользователю"),
+            200: OpenApiResponse(description="Запрос создан, инвойс отправлен"),
             400: OpenApiResponse(description="Ошибка данных"),
-            500: OpenApiResponse(description="Ошибка взаимодействия с Telegram или userbot"),
+            403: OpenApiResponse(description="Подарок не принадлежит пользователю"),
+            404: OpenApiResponse(description="Подарок не найден"),
+            500: OpenApiResponse(description="Ошибка создания инвойса"),
         },
     )
     def post(self, request, *args, **kwargs):
@@ -97,26 +100,84 @@ class WithdrawalOfNFT(APIView):
         gift_id = serializer.validated_data["gift_id"]
         user = request.user
 
-        logger.info(f"📤 Пользователь {user} запросил вывод NFT ID={gift_id}")
+        logger.info(f"📤 Пользователь {user} запросил создание запроса на вывод NFT ID={gift_id}")
 
-        # Создаём инвойс на 25 звёзд
-        invoice = create_stars_invoice(user, gift_id, amount=25)
-        if not invoice.get("ok"):
-            logger.error(f"💀 Не удалось создать инвойс: {invoice.get('error')}")
+        # Создаем запрос на вывод через сервис
+        result = GiftWithdrawalRequestService.create_withdrawal_request(user, gift_id)
+        
+        if result["status"] != status.HTTP_200_OK:
             return Response(
-                {"detail": f"Ошибка при создании инвойса: {invoice.get('error')}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                {"detail": result["detail"]},
+                status=result["status"]
             )
 
-        # Отправляем уведомление userbot’у
-        send_test_request_to_userbot({
-            "user_id": user.id,
-            "username": user.username,
-            "gift_id": gift_id,
-            "invoice_payload": invoice["payload"]["payload"],
-        })
+        return Response(result, status=status.HTTP_200_OK)
 
-        return Response({
-            "detail": "Инвойс успешно отправлен пользователю в Telegram для оплаты 25⭐",
-            "invoice_message_id": invoice["data"].get("message_id"),
-        }, status=200)
+
+class TelegramPaymentWebhook(APIView):
+    """
+    Webhook для обработки успешных платежей Telegram Stars.
+    Вызывается Telegram при успешной оплате инвойса.
+    """
+    permission_classes = [AllowAny]  # Telegram webhook не требует аутентификации
+
+    @extend_schema(
+        summary="Webhook для успешных платежей Telegram Stars",
+        description="Обрабатывает уведомления об успешной оплате инвойсов и выполняет вывод подарков.",
+        responses={
+            200: OpenApiResponse(description="Платеж обработан успешно"),
+            400: OpenApiResponse(description="Ошибка данных платежа"),
+            500: OpenApiResponse(description="Ошибка обработки платежа"),
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        """
+        Обрабатывает webhook от Telegram при успешной оплате.
+        Ожидает данные в формате:
+        {
+            "invoice_payload": "withdraw_gift_123",
+            "telegram_payment_charge_id": "...",
+            "provider_payment_charge_id": "..."
+        }
+        """
+        logger.info(f"[TelegramPaymentWebhook] Получен webhook: {request.data}")
+        
+        try:
+            invoice_payload = request.data.get("invoice_payload")
+            if not invoice_payload:
+                logger.error("[TelegramPaymentWebhook] ❌ Отсутствует invoice_payload")
+                return Response(
+                    {"detail": "Отсутствует invoice_payload"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Проверяем, что это запрос на вывод подарка
+            if not invoice_payload.startswith("withdraw_gift_"):
+                logger.warning(f"[TelegramPaymentWebhook] ⚠️ Неизвестный payload: {invoice_payload}")
+                return Response(
+                    {"detail": "Неизвестный тип платежа"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Обрабатываем успешную оплату
+            success = GiftWithdrawalRequestService.process_successful_payment(invoice_payload)
+            
+            if success:
+                logger.info(f"[TelegramPaymentWebhook] ✅ Платеж обработан успешно: {invoice_payload}")
+                return Response(
+                    {"detail": "Платеж обработан успешно"},
+                    status=status.HTTP_200_OK
+                )
+            else:
+                logger.error(f"[TelegramPaymentWebhook] ❌ Ошибка обработки платежа: {invoice_payload}")
+                return Response(
+                    {"detail": "Ошибка обработки платежа"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+                
+        except Exception as e:
+            logger.exception(f"[TelegramPaymentWebhook] ❌ Ошибка: {e}")
+            return Response(
+                {"detail": f"Ошибка обработки webhook: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
