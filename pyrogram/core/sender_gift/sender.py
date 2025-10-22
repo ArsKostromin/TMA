@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from pyrogram import Client
 from pyrogram.errors import RPCError, StargiftUsageLimited
 
@@ -25,37 +26,6 @@ async def send_gift_to_user(app: Client, peer_id: int, gift_id: int):
             logger.error("❌ Недостаточно звёзд для отправки подарка")
             return False
 
-        # Проверяем, существует ли подарок и можно ли его отправить
-        try:
-            gift_info = await app.get_gift(gift_id)
-            logger.info(f"📦 Информация о подарке: {gift_info}")
-
-            # Выведем ключевую инфу
-            name = getattr(gift_info, "title", "Без названия")
-            price = getattr(gift_info, "price", None)
-            supply_left = getattr(gift_info, "supply_left", None)
-            can_send = getattr(gift_info, "can_send", True)
-            is_available = getattr(gift_info, "is_available", True)
-
-            logger.info(f"🎀 Подарок: {name} | 💸 Цена: {price} | 🧮 Остаток: {supply_left} | 📤 Можно отправить: {can_send} | 🔓 Доступен: {is_available}")
-
-            if not is_available:
-                logger.warning("⚠️ Подарок больше недоступен для отправки.")
-                return False
-            if not can_send:
-                logger.warning("⚠️ Этот подарок нельзя отправлять вручную.")
-                return False
-            if supply_left is not None and supply_left <= 0:
-                logger.warning("⚠️ Саплай подарка закончился.")
-                return False
-            if price is not None and balance < price:
-                logger.warning(f"⚠️ Не хватает звёзд для покупки (нужно {price}, есть {balance}).")
-                return False
-
-        except RPCError as e:
-            logger.error(f"❌ Не удалось получить информацию о подарке: {e}")
-            return False
-
         # Отправляем подарок через API Pyrogram
         result = await app.send_gift(
             chat_id=peer_id,
@@ -77,3 +47,28 @@ async def send_gift_to_user(app: Client, peer_id: int, gift_id: int):
     except Exception as e:
         logger.error(f"💥 Непредвиденная ошибка при отправке подарка: {e}", exc_info=True)
         return False
+
+
+# ==== Локальный тест ====
+# if __name__ == "__main__":
+#     import os
+#     from ..telegram_client import create_client
+#     import config
+
+#     async def main():
+#         app = create_client(config)
+#         await app.start()
+
+#         peer_id = 1207534564  # id получателя
+#         gift_id = 5852757491946882427  # id гифта SnakeBox-29826
+
+#         success = await send_gift_to_user(app, peer_id, gift_id)
+
+#         if success:
+#             logger.info("🎉 Тестовая отправка прошла успешно!")
+#         else:
+#             logger.error("💀 Тестовая отправка не удалась!")
+
+#         await app.stop()
+
+#     asyncio.run(main())
