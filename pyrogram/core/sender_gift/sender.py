@@ -61,6 +61,7 @@ async def show_my_gifts(app: Client):
 
         if not collections:
             logger.info("⚠️ У тебя нет подарков.")
+            logger.info(collections)
             return
 
         for coll in collections:
