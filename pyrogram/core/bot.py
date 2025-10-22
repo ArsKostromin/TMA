@@ -48,10 +48,9 @@ async def main_userbot():
         logger.info(f"🎁 Попытка отправки подарка {gift_id} пользователю {peer_id}...")
 
         success = await send_gift_to_user(
-            app,
+            app=app,
             recipient_id=1207534564,
-            gift_id=5852757491946882427,
-            slug="SnakeBox-29826"
+            owned_gift_id=5852757491946882427,
         )
 
         if success:
