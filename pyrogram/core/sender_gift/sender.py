@@ -6,47 +6,27 @@ from pyrogram.errors import RPCError, StargiftUsageLimited
 logger = logging.getLogger("pyrogram-main.sender")
 
 
-async def send_gift_to_user(app: Client, peer_id: int, gift_id: int):
+async def send_gift_to_user(app: Client, recipient_id: int, gift_id: int, slug: str):
     """
-    Отправляет подарок (NFT) пользователю через Pyrogram метод send_gift.
-
-    :param app: Инициализированный клиент Pyrogram
-    :param peer_id: Telegram ID получателя
-    :param gift_id: ID подарка (NFT)
-    :return: True, если отправлено успешно, иначе False
+    Отправляем коллекционный подарок (TON NFT gift) пользователю.
     """
     try:
-        logger.info(f"🎁 Отправляем подарок ID={gift_id} пользователю ID={peer_id}...")
+        logger.info(f"🎁 Отправляем коллекционный подарок {slug} (ID={gift_id}) пользователю {recipient_id}...")
 
-        # Проверяем баланс перед отправкой
-        balance = await app.get_stars_balance()
-        logger.info(f"💰 Текущий баланс: {balance}")
-
-        if balance <= 0:
-            logger.error("❌ Недостаточно звёзд для отправки подарка")
-            return False
-
-        # Отправляем подарок через API Pyrogram
-        result = await app.send_gift(
-            chat_id=peer_id,
+        result = await app.send_upgraded_gift(
+            peer_id=recipient_id,
             gift_id=gift_id,
-            is_private=True,
+            slug=slug,  # slug = символ подарка, например SnakeBox-29826
+            is_private=False  # если True — не будет видно в профиле
         )
 
-        logger.info(f"✅ Подарок успешно отправлен пользователю {peer_id}! Ответ API: {result}")
-        return True
-
-    except StargiftUsageLimited:
-        logger.warning(f"⚠️ Саплай подарка ID={gift_id} закончился")
-        return False
+        logger.info(f"✅ Подарок {slug} успешно отправлен пользователю {recipient_id}!")
+        logger.debug(f"Ответ Kurigram API: {result}")
 
     except RPCError as e:
-        logger.error(f"❌ Ошибка RPC при отправке подарка: {e}")
-        return False
-
+        logger.error(f"❌ RPC ошибка при отправке подарка: {e}")
     except Exception as e:
-        logger.error(f"💥 Непредвиденная ошибка при отправке подарка: {e}", exc_info=True)
-        return False
+        logger.error(f"💥 Непредвиденная ошибка при отправке коллекционного подарка: {e}", exc_info=True)
 
 
 async def show_my_gifts(app: Client):
