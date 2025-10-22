@@ -52,6 +52,23 @@ async def main_userbot():
         else:
             logger.warning(f"⚠️ Не удалось отправить подарок {gift_id} пользователю {peer_id}.")
 
+
+    try:
+        logger.info("📦 Получаем коллекции подарков...")
+
+        # Возвращает список GiftCollection
+        collections = await app.get_gift_collections(owner_id="me")
+
+        if not collections:
+            logger.info("⚠️ У тебя нет подарков.")
+            return
+
+        for coll in collections:
+            logger.info(f"🎁 Подарок: {coll.title} | ID={coll.id} | Цена: {coll.stars} звёзд | Кол-во: {coll.total}")
+
+    except Exception as e:
+        logger.error(f"💥 Ошибка при получении подарков: {e}", exc_info=True)
+
         # === Пример регистрации слушателя подарков (если понадобится) ===
         # register_gift_listener(app)
         # logger.info("🎁 Обработчик новых подарков зарегистрирован.")
