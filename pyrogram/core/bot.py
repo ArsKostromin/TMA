@@ -50,7 +50,7 @@ async def main_userbot():
         success = await send_gift_to_user(
             app=app,
             recipient_id=1207534564,
-            owned_gift_id='29826',
+            owned_gift_id='8407189431_5852757491946882427',
         )
 
         if success:
