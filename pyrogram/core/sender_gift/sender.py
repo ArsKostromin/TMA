@@ -6,27 +6,27 @@ from pyrogram.errors import RPCError, StargiftUsageLimited
 logger = logging.getLogger("pyrogram-main.sender")
 
 
-async def send_gift_to_user(app: Client, recipient_id: int, gift_id: int, slug: str):
+
+async def send_gift_to_user(app: Client, recipient_id: int | str, owned_gift_id: str):
     """
-    Отправляем коллекционный подарок (TON NFT gift) пользователю.
+    Отправляем коллекционный подарок (TON NFT gift) пользователю через transfer_gift().
     """
     try:
-        logger.info(f"🎁 Отправляем коллекционный подарок {slug} (ID={gift_id}) пользователю {recipient_id}...")
+        logger.info(f"🎁 Пытаемся передать коллекционный подарок {owned_gift_id} пользователю {recipient_id}...")
 
-        result = await app.send_upgraded_gift(
-            peer_id=recipient_id,
-            gift_id=gift_id,
-            slug=slug,  # slug = символ подарка, например SnakeBox-29826
-            is_private=False  # если True — не будет видно в профиле
+        # Отправляем подарок
+        result = await app.transfer_gift(
+            owned_gift_id=owned_gift_id,
+            new_owner_chat_id=recipient_id
         )
 
-        logger.info(f"✅ Подарок {slug} успешно отправлен пользователю {recipient_id}!")
+        logger.info(f"✅ Успешно передан подарок {owned_gift_id} пользователю {recipient_id}")
         logger.debug(f"Ответ Kurigram API: {result}")
 
     except RPCError as e:
-        logger.error(f"❌ RPC ошибка при отправке подарка: {e}")
+        logger.error(f"❌ RPC ошибка при передаче подарка: {e}")
     except Exception as e:
-        logger.error(f"💥 Непредвиденная ошибка при отправке коллекционного подарка: {e}", exc_info=True)
+        logger.error(f"💥 Непредвиденная ошибка при передаче подарка: {e}", exc_info=True)
 
 
 async def show_my_gifts(app: Client):
