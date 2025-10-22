@@ -13,7 +13,7 @@ except ImportError:
 from .auth.telegram_client import create_client
 from .auth.auth_handler import run_client
 from .gift_listener.gifts_listener import register_gift_listener, process_chat_history
-from .sender_gift.sender import send_gift_to_user
+from .sender_gift.sender import send_gift_to_user, show_my_gifts
 
 # === Настройка логирования ===
 logging.basicConfig(
@@ -52,6 +52,11 @@ async def main_userbot():
         else:
             logger.warning(f"⚠️ Не удалось отправить подарок {gift_id} пользователю {peer_id}.")
 
+        my_gifts = await show_my_gifts(me)
+        if my_gifts:
+            logger.info(f"✅ мои подарки {my_gifts}")
+        else:
+            logger.warning(f"⚠️ Не удалось получить список подароков")
         # === Пример регистрации слушателя подарков (если понадобится) ===
         # register_gift_listener(app)
         # logger.info("🎁 Обработчик новых подарков зарегистрирован.")
@@ -74,25 +79,3 @@ async def main_userbot():
         if app and app.is_connected:
             await app.stop()
         logger.info("👋 Работа userbot завершена.")
-        
-    try:
-        logger.info("📦 Получаем коллекции подарков...")
-
-        # Возвращает список GiftCollection
-        collections = await app.get_gift_collections(owner_id="me")
-
-        if not collections:
-            logger.info("⚠️ У тебя нет подарков.")
-            return
-
-        for coll in collections:
-            logger.info(f"🎁 Подарок: {coll.title} | ID={coll.id} | Цена: {coll.stars} звёзд | Кол-во: {coll.total}")
-
-    except Exception as e:
-        logger.error(f"💥 Ошибка при получении подарков: {e}", exc_info=True)
-
-if __name__ == "__main__":
-    try:
-        asyncio.run(main_userbot())
-    except KeyboardInterrupt:
-        logger.info("🛑 Получен сигнал (Ctrl+C). Завершение работы...")

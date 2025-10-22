@@ -49,26 +49,22 @@ async def send_gift_to_user(app: Client, peer_id: int, gift_id: int):
         return False
 
 
-# ==== Локальный тест ====
-# if __name__ == "__main__":
-#     import os
-#     from ..telegram_client import create_client
-#     import config
+async def show_my_gifts(app: Client):
+    """
+    Получаем все подарки, которые есть у текущего пользователя, и выводим в лог. для тестов
+    """
+    try:
+        logger.info("📦 Получаем коллекции подарков...")
 
-#     async def main():
-#         app = create_client(config)
-#         await app.start()
+        # Возвращает список GiftCollection
+        collections = await app.get_gift_collections(owner_id="me")
 
-#         peer_id = 1207534564  # id получателя
-#         gift_id = 5852757491946882427  # id гифта SnakeBox-29826
+        if not collections:
+            logger.info("⚠️ У тебя нет подарков.")
+            return
 
-#         success = await send_gift_to_user(app, peer_id, gift_id)
+        for coll in collections:
+            logger.info(f"🎁 Подарок: {coll.title} | ID={coll.id} | Цена: {coll.stars} звёзд | Кол-во: {coll.total}")
 
-#         if success:
-#             logger.info("🎉 Тестовая отправка прошла успешно!")
-#         else:
-#             logger.error("💀 Тестовая отправка не удалась!")
-
-#         await app.stop()
-
-#     asyncio.run(main())
+    except Exception as e:
+        logger.error(f"💥 Ошибка при получении подарков: {e}", exc_info=True)
