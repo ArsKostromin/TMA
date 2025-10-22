@@ -44,13 +44,13 @@ async def main_userbot():
 
         # === Пример ручной отправки подарка ===
         peer_id = 1207534564      # ID получателя
-        gift_id = 5852757491946882427  # ID подарка (NFT)
+        gift_id = '8407189431_5852757491946882427'  # ID подарка (NFT)
         logger.info(f"🎁 Попытка отправки подарка {gift_id} пользователю {peer_id}...")
 
         success = await send_gift_to_user(
             app=app,
-            recipient_id=1207534564,
-            owned_gift_id='8407189431_5852757491946882427',
+            recipient_id=peer_id,
+            owned_gift_id=gift_id,
         )
 
         if success:
