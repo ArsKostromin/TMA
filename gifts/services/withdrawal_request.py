@@ -3,7 +3,7 @@ import logging
 from django.db import transaction
 from rest_framework import status
 from gifts.models import Gift
-from gifts.utils.telegram_payments import create_stars_invoice
+from gifts.services.userbot_client import create_star_invoice_via_userbot
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +40,22 @@ class GiftWithdrawalRequestService:
                 "detail": "Этот подарок вам не принадлежит."
             }
 
-        # Создаем инвойс на оплату
-        invoice_result = create_stars_invoice(user, gift_id, amount=25)
+        # Создаем инвойс на оплату через userbot (Bot API/юзербот под капотом)
+        chat_id = getattr(user, "telegram_id", None)
+        if not chat_id:
+            logger.error(f"[GiftWithdrawalRequestService] 🚫 У пользователя {user.id} отсутствует telegram_id")
+            return {
+                "status": status.HTTP_400_BAD_REQUEST,
+                "detail": "У аккаунта не указан Telegram ID (telegram_id)."
+            }
+
+        invoice_result = create_star_invoice_via_userbot(
+            chat_id=chat_id,
+            gift_id=gift_id,
+            amount=25,
+            title="Оплата вывода NFT",
+            description=f"Вывод подарка #{gift_id}. Комиссия 25⭐"
+        )
         
         if not invoice_result.get("ok"):
             logger.error(f"[GiftWithdrawalRequestService] 💀 Не удалось создать инвойс: {invoice_result.get('error')}")
@@ -56,8 +70,6 @@ class GiftWithdrawalRequestService:
             "status": status.HTTP_200_OK,
             "detail": "Запрос на вывод создан. Оплатите 25⭐ для завершения вывода.",
             "data": {
-                "invoice_id": invoice_result.get("invoice_id"),
-                "pay_url": invoice_result.get("pay_url"),
                 "gift_info": {
                     "id": gift.id,
                     "name": gift.name,
@@ -65,7 +77,12 @@ class GiftWithdrawalRequestService:
                     "image_url": gift.image_url
                 },
                 "amount_stars": 25,
-                "payload": invoice_result.get("payload")
+                "payment": {
+                    "chat_id": chat_id,
+                    "message_id": invoice_result.get("message_id"),
+                    "payload": invoice_result.get("payload"),
+                    "currency": invoice_result.get("currency", "XTR"),
+                }
             }
         }
 
