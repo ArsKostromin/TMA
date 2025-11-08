@@ -22,7 +22,15 @@ class TelegramAuthService:
         if not tg_user:
             raise ValueError("No user data in initData")
 
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Пытаемся загрузить аватарку из Telegram
         avatar_url = AvatarService.download_and_save_avatar(tg_user["id"], settings.BOT_TOKEN)
+        if avatar_url:
+            logger.info(f"Аватарка успешно загружена для пользователя {tg_user.get('username', tg_user['id'])}: {avatar_url}")
+        else:
+            logger.warning(f"Не удалось загрузить аватарку для пользователя {tg_user.get('username', tg_user['id'])} (ID: {tg_user['id']})")
 
         user, created = User.objects.get_or_create(
             telegram_id=tg_user["id"],
@@ -37,11 +45,14 @@ class TelegramAuthService:
             if user.username != tg_user.get("username", ""):
                 user.username = tg_user.get("username", "")
                 updated = True
-            if user.avatar_url != avatar_url:
+            # Обновляем аватарку только если она была успешно загружена
+            if avatar_url and user.avatar_url != avatar_url:
                 user.avatar_url = avatar_url
                 updated = True
             if updated:
                 user.save()
+                if avatar_url:
+                    logger.info(f"Профиль пользователя {user.username} обновлен, новая аватарка: {avatar_url}")
 
         access = AuthService.create_access_token(user.id)
         refresh = AuthService.create_refresh_token(user.id)

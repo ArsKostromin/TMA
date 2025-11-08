@@ -24,6 +24,10 @@ class AvatarService:
         Скачивает аватарку пользователя из Telegram и сохраняет локально или на S3.
         Возвращает URL сохраненного файла или None при ошибке.
         """
+        if not bot_token:
+            logger.error("BOT_TOKEN не настроен в settings.py")
+            return None
+            
         try:
             # Получаем информацию о фото профиля
             photos_response = requests.get(
@@ -32,12 +36,18 @@ class AvatarService:
                 timeout=10
             ).json()
 
-            if not photos_response.get("ok") or not photos_response["result"]["photos"]:
+            if not photos_response.get("ok"):
+                logger.warning(f"Telegram API вернул ошибку для пользователя {telegram_user_id}: {photos_response.get('description', 'Unknown error')}")
+                return None
+            
+            result = photos_response.get("result", {})
+            photos = result.get("photos", [])
+            if not photos:
                 logger.info(f"Нет фото профиля для пользователя {telegram_user_id}")
                 return None
 
-            # Получаем file_id последнего фото
-            file_id = photos_response["result"]["photos"][0][-1]["file_id"]
+            # Получаем file_id последнего фото (самое большое разрешение)
+            file_id = photos[0][-1]["file_id"]
             
             # Получаем информацию о файле
             file_response = requests.get(
@@ -82,6 +92,10 @@ class AvatarService:
             # Генерируем уникальное имя файла
             filename = f"avatars/user_{telegram_user_id}_{uuid.uuid4().hex[:8]}.png"
             
+            # Убеждаемся, что папка avatars существует
+            avatars_dir = os.path.join(settings.MEDIA_ROOT, 'avatars')
+            os.makedirs(avatars_dir, exist_ok=True)
+            
             # Сохраняем в BytesIO с оптимизацией
             output = BytesIO()
             png_image.save(output, format='PNG', optimize=True, quality=85)
@@ -89,6 +103,7 @@ class AvatarService:
 
             # Сохраняем файл
             saved_path = default_storage.save(filename, ContentFile(output.getvalue()))
+            logger.info(f"Аватарка сохранена: {saved_path}")
             
             # Возвращаем URL
             if hasattr(settings, 'MEDIA_URL'):

@@ -315,5 +315,20 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
+        'user.services': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'user.services.avatar_service': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'user.services.telegram_auth': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }
