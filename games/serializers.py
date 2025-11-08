@@ -5,7 +5,6 @@ from gifts.models import Gift
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from decimal import Decimal
-from django.conf import settings
 from gifts.serializers import GiftSerializer
 
 
@@ -90,11 +89,7 @@ class TopPlayerSerializer(serializers.ModelSerializer):
         ]
 
     def get_avatar_url(self, obj):
-        if hasattr(obj, "get_avatar_url"):
-            return obj.get_avatar_url()
-        if getattr(obj, "avatar_url", None):
-            return obj.avatar_url
-        return getattr(settings, "DEFAULT_AVATAR_URL", "https://teststudiaorbita.ru/media/avatars/diamond.png")
+        return obj.get_avatar_url()
 
     def get_wins_count(self, obj):
         return obj.games_won.filter(status="finished", mode="pvp").count()
@@ -168,13 +163,7 @@ class LastWinnerSerializer(serializers.ModelSerializer):
 
     def get_avatar_url(self, obj):
         """Возвращает аватарку пользователя или аватарку по умолчанию"""
-        user = obj.user
-        if user and hasattr(user, 'get_avatar_url'):
-            return user.get_avatar_url()
-        elif user and user.avatar_url:
-            return user.avatar_url
-        from django.conf import settings
-        return getattr(settings, 'DEFAULT_AVATAR_URL', "https://teststudiaorbita.ru/media/avatars/diamond.png")
+        return obj.user.get_avatar_url()
 
     def get_win_amount(self, obj):
         """Получить выигрыш игрока из игры"""
@@ -232,9 +221,7 @@ class PublicPvpGameSerializer(serializers.ModelSerializer):
         return {
             "id": user.id,
             "username": getattr(user, "username", None),
-            "avatar_url": user.get_avatar_url() if hasattr(user, 'get_avatar_url') else (
-                user.avatar_url if getattr(user, 'avatar_url', None) else getattr(settings, "DEFAULT_AVATAR_URL", "https://teststudiaorbita.ru/media/avatars/diamond.png")
-            ),
+            "avatar_url": user.get_avatar_url(),
         }
 
     def get_winner_gift_icons(self, obj):
@@ -311,9 +298,7 @@ class PvpGameDetailSerializer(serializers.ModelSerializer):
         return {
             "id": user.id,
             "username": getattr(user, "username", None),
-            "avatar_url": user.get_avatar_url() if hasattr(user, 'get_avatar_url') else (
-                user.avatar_url if getattr(user, 'avatar_url', None) else getattr(settings, "DEFAULT_AVATAR_URL", "https://teststudiaorbita.ru/media/avatars/diamond.png")
-            ),
+            "avatar_url": user.get_avatar_url(),
         }
     
     def get_winner_gifts(self, obj):

@@ -15,9 +15,8 @@ class TelegramAuthResponseSerializer(serializers.Serializer):
 
     def get_avatar_url(self, obj):
         """Возвращает аватарку пользователя или аватарку по умолчанию"""
-        if obj.get('avatar_url'):
-            return obj['avatar_url']
-        return getattr(settings, 'DEFAULT_AVATAR_URL', "https://teststudiaorbita.ru/media/avatars/diamond.png")
+        # obj здесь - это словарь из TelegramAuthService, где avatar_url уже получен через user.get_avatar_url()
+        return obj.get('avatar_url') or getattr(settings, 'DEFAULT_AVATAR_URL', "https://teststudiaorbita.ru/media/avatars/diamond.png")
 
 
 class RefreshTokenRequestSerializer(serializers.Serializer):

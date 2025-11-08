@@ -144,7 +144,7 @@ class GameService:
             {
                 "id": p.user.id,
                 "username": p.user.username,
-                "avatar_url": p.user.get_avatar_url() if hasattr(p.user, 'get_avatar_url') else p.user.avatar_url,
+                "avatar_url": p.user.get_avatar_url(),
                 "bet_ton": str(p.bet_ton),
                 "chance_percent": float(p.chance_percent),
                 "gifts": [
@@ -265,7 +265,7 @@ class GameService:
             "winner": {
                 "id": winner.user.id,
                 "username": getattr(winner.user, "username", None),
-                "avatar_url": winner.user.get_avatar_url() if hasattr(winner.user, 'get_avatar_url') else getattr(winner.user, "avatar_url", None),
+                "avatar_url": winner.user.get_avatar_url(),
             },
             "winner_gifts": [
                 {
