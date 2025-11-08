@@ -109,7 +109,7 @@ class AvatarService:
             if hasattr(settings, 'MEDIA_URL'):
                 return f"{settings.MEDIA_URL}{saved_path}"
             else:
-                return f"/media/{saved_path}"
+                return f"https://teststudiaorbita.ru/media/{saved_path}"
 
         except Exception as e:
             logger.error(f"Ошибка при загрузке аватарки для пользователя {telegram_user_id}: {e}")
