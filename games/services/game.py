@@ -190,6 +190,25 @@ class GameService:
         count = GamePlayer.objects.filter(game_id=game_id).count()
 
     @staticmethod
+    def get_online_players_count():
+        """
+        Возвращает количество уникальных онлайн игроков в PVP рулетке.
+        Подсчитывает уникальных пользователей в активных играх (waiting/running).
+        """
+        from games.models import GamePlayer
+        
+        # Подсчитываем уникальных пользователей в активных PVP играх
+        online_count = (
+            GamePlayer.objects
+            .filter(game__mode="pvp", game__status__in=["waiting", "running"])
+            .values("user")
+            .distinct()
+            .count()
+        )
+        
+        return online_count
+
+    @staticmethod
     def finish_game(game_id):
         from games.models import Game, GamePlayer
 

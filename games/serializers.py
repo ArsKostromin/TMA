@@ -144,6 +144,10 @@ class SpinPlayResponseSerializer(serializers.Serializer):
     balances = serializers.DictField(child=serializers.CharField())
 
 
+class OnlinePlayersCountSerializer(serializers.Serializer):
+    online_count = serializers.IntegerField()
+
+
 class LastWinnerSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source="user.id")
     username = serializers.CharField(source="user.username")

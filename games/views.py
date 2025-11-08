@@ -12,6 +12,7 @@ from .serializers import (
     SpinPlayRequestSerializer,
     SpinPlayResponseSerializer,
     LastWinnerSerializer,
+    OnlinePlayersCountSerializer,
 )
 from django.db.models import Sum, Count, Q
 from rest_framework.generics import ListAPIView
@@ -24,6 +25,7 @@ from django.core.exceptions import ValidationError
 from decimal import Decimal
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 from .services.last_winner import get_last_pvp_winner
+from .services.game import GameService
 from .api_examples import (
     GAME_HISTORY_EXAMPLE,
     TOP_PLAYER_EXAMPLE,
@@ -333,3 +335,29 @@ class LastPvpWinnerView(APIView):
         data = LastWinnerSerializer(winner_gp).data
         data["game_id"] = last_game.id
         return Response(data)
+
+
+class OnlinePlayersCountView(APIView):
+    permission_classes = [AllowAny]
+    
+    @extend_schema(
+        summary="Количество онлайн игроков",
+        description="Возвращает количество уникальных игроков, которые сейчас играют в PVP рулетку (в активных играх со статусом waiting или running)",
+        responses={
+            200: OpenApiResponse(
+                response=OnlinePlayersCountSerializer,
+                description="Успешный ответ",
+                examples=[
+                    OpenApiExample(
+                        name="Пример ответа",
+                        value={"online_count": 5}
+                    )
+                ],
+            ),
+        },
+        tags=["Games"],
+    )
+    def get(self, request):
+        online_count = GameService.get_online_players_count()
+        serializer = OnlinePlayersCountSerializer({"online_count": online_count})
+        return Response(serializer.data, status=status.HTTP_200_OK)
