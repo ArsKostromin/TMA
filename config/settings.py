@@ -275,6 +275,9 @@ CELERY_BEAT_SCHEDULE = {
 # Аватарка по умолчанию для пользователей
 DEFAULT_AVATAR_URL = "https://teststudiaorbita.ru/media/avatars/diamond.png"
 
+# Базовый URL сайта для генерации полных ссылок
+SITE_URL = os.getenv('SITE_URL', 'https://teststudiaorbita.ru')
+
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
 

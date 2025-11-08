@@ -105,11 +105,30 @@ class AvatarService:
             saved_path = default_storage.save(filename, ContentFile(output.getvalue()))
             logger.info(f"Аватарка сохранена: {saved_path}")
             
-            # Возвращаем URL
-            if hasattr(settings, 'MEDIA_URL'):
-                return f"{settings.MEDIA_URL}{saved_path}"
+            # Возвращаем полный URL
+            site_url = getattr(settings, 'SITE_URL', 'https://teststudiaorbita.ru')
+            # Убираем trailing slash если есть
+            site_url = site_url.rstrip('/')
+            
+            # Формируем путь к медиа файлу
+            # saved_path обычно возвращает путь относительно MEDIA_ROOT (например, "avatars/user_123_abc.png")
+            # или может вернуть полный путь если используется S3
+            if saved_path.startswith('http://') or saved_path.startswith('https://'):
+                # Если storage вернул полный URL (S3), используем его
+                return saved_path
+            
+            # Нормализуем путь: убираем начальные слеши
+            normalized_path = saved_path.lstrip('/')
+            
+            # Если путь уже содержит media/, используем как есть, иначе добавляем
+            if normalized_path.startswith('media/'):
+                media_path = normalized_path
             else:
-                return f"https://teststudiaorbita.ru/media/{saved_path}"
+                media_path = f"media/{normalized_path}"
+            
+            # Формируем полный URL без двойных слешей
+            full_url = f"{site_url}/{media_path}"
+            return full_url
 
         except Exception as e:
             logger.error(f"Ошибка при загрузке аватарки для пользователя {telegram_user_id}: {e}")
