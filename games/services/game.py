@@ -153,9 +153,11 @@ class GameService:
                         "user_username": gift.user.username,
                         "ton_contract_address": gift.ton_contract_address,
                         "name": gift.name,
-                        "image_url": gift.image_url,
-                        "price_ton": str(gift.price_ton),
-                        "backdrop": gift.backdrop,
+                        "image_url": (
+                            f"https://nft.fragment.com/gift/{gift.symbol}.medium.jpg"
+                            if gift.symbol else gift.image_url
+                        ),                        "price_ton": str(gift.price_ton),
+                            "backdrop": gift.backdrop,
                         "symbol": gift.symbol,
                         "model_name": gift.model_name,
                         "pattern_name": gift.pattern_name,
@@ -291,8 +293,10 @@ class GameService:
                     "id": gift.id,
                     "ton_contract_address": gift.ton_contract_address,
                     "name": gift.name,
-                    "image_url": gift.image_url,
-                    "price_ton": str(gift.price_ton),
+                    "image_url": (
+                        f"https://nft.fragment.com/gift/{gift.symbol}.medium.jpg"
+                        if gift.symbol else gift.image_url
+                    ),                    "price_ton": str(gift.price_ton),
                     "backdrop": gift.backdrop,
                     "symbol": gift.symbol,
                 }
