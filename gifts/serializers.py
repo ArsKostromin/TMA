@@ -10,6 +10,7 @@ class GiftSerializer(serializers.ModelSerializer):
     # для вывода во фронт
     backdrop_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
     user_username = serializers.CharField(source='user.username', read_only=True)
+    image_url = serializers.SerializerMethodField()  # <-- теперь вычисляется
 
     class Meta:
         model = Gift
@@ -34,6 +35,15 @@ class GiftSerializer(serializers.ModelSerializer):
             "backdrop_name",
         ]
 
+    def get_image_url(self, obj):
+        """
+        Если есть symbol — формируем ссылку вида:
+        https://nft.fragment.com/gift/{symbol}.medium.jpg
+        иначе — возвращаем то, что в базе.
+        """
+        if obj.symbol:
+            return f"https://nft.fragment.com/gift/{obj.symbol}.medium.jpg"
+        return obj.image_url
 
 class GiftWithdrawSerializer(serializers.Serializer):
     # для вывода пользователю на аккаунт

@@ -338,7 +338,7 @@ class LastPvpWinnerView(APIView):
 
 
 class OnlinePlayersCountView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     @extend_schema(
         summary="Количество онлайн игроков",
