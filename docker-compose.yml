@@ -108,6 +108,8 @@ services:
       context: ./userbot
     container_name: SG-userbot
     restart: unless-stopped
+    ports:
+      - "8080:8080"  # Порт для FastAPI сервера
     volumes:
       - ./userbot/session:/app/session
       # 💡 ИЗМЕНЕНИЕ: Добавляем общую media-папку
@@ -120,6 +122,10 @@ services:
       - API_BASE_URL=${API_BASE_URL:-http://web:8000}
       - API_TOKEN=${API_TOKEN}
       - USER_ID=${USER_ID}
+      - STAR_TOKEN=${STAR_TOKEN:-${BOT_TOKEN}}  # Токен бота для создания инвойсов
+      - BOT_TOKEN=${BOT_TOKEN}  # Альтернативное имя переменной
+    depends_on:
+      - web
     networks:
       - SG-network
 
