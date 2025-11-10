@@ -18,12 +18,12 @@ class TelegramStarsService:
         return getattr(settings, 'BOT_TOKEN', None)
     
     @classmethod
-    def create_invoice(cls, user_id: int, order_id: int, amount_stars: int, title: str = None, description: str = None) -> dict:
+    def create_invoice(cls, order_id: int, amount_stars: int, title: str = None, description: str = None) -> dict:
         """
-        Создаёт Telegram Stars инвойс для пользователя.
+        Создаёт ссылку на Telegram Stars инвойс для Mini App.
+        Использует createInvoiceLink - возвращает только ссылку, без отправки сообщения.
         
         Args:
-            user_id: Telegram ID пользователя
             order_id: ID заказа (game_id для спин игры)
             amount_stars: Количество звёзд для оплаты
             title: Заголовок инвойса (опционально)
@@ -45,10 +45,11 @@ class TelegramStarsService:
                 "error": "BOT_TOKEN не настроен"
             }
         
-        url = f"https://api.telegram.org/bot{bot_token}/sendInvoice"
+        # Используем createInvoiceLink вместо sendInvoice
+        # createInvoiceLink возвращает только ссылку, без отправки сообщения
+        url = f"https://api.telegram.org/bot{bot_token}/createInvoiceLink"
         
         payload = {
-            "chat_id": user_id,
             "title": title or "Ставка в рулетку",
             "description": description or "Оплата участия звёздами",
             "payload": f"spin_game_{order_id}",  # формат: spin_game_{game_id}
@@ -57,7 +58,7 @@ class TelegramStarsService:
             "provider_token": "",  # для Stars — оставляем пустым
         }
         
-        logger.info(f"🧾 Создание инвойса: user_id={user_id}, order_id={order_id}, amount={amount_stars}")
+        logger.info(f"🧾 Создание ссылки на инвойс для Mini App: order_id={order_id}, amount={amount_stars}")
         
         try:
             resp = requests.post(url, json=payload, timeout=20)
@@ -65,24 +66,21 @@ class TelegramStarsService:
             data = resp.json()
             
             if data.get("ok"):
-                # Извлекаем invoice_link из результата
-                result = data.get("result", {})
-                invoice_link = result.get("invoice", {}).get("invoice_link") or result.get("invoice_link")
+                # createInvoiceLink возвращает invoice_link напрямую
+                invoice_link = data.get("result")
                 
                 if invoice_link:
-                    logger.info(f"✅ Инвойс успешно создан: invoice_link={invoice_link}")
+                    logger.info(f"✅ Ссылка на инвойс создана: invoice_link={invoice_link}")
                     return {
                         "ok": True,
                         "invoice_link": invoice_link,
-                        "message_id": result.get("message_id"),
                         "invoice_payload": f"spin_game_{order_id}"
                     }
                 else:
                     logger.warning(f"⚠️ Инвойс создан, но invoice_link не найден: {data}")
                     return {
-                        "ok": True,
-                        "invoice_link": None,
-                        "data": data
+                        "ok": False,
+                        "error": "invoice_link не найден в ответе API"
                     }
             else:
                 error_msg = data.get("description", "Неизвестная ошибка Telegram API")

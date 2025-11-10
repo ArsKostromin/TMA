@@ -138,10 +138,13 @@ class SpinPlayRequestSerializer(serializers.Serializer):
 class SpinPlayResponseSerializer(serializers.Serializer):
     game_id = serializers.IntegerField()
     bet_stars = serializers.IntegerField()
-    bet_ton = serializers.DecimalField(max_digits=18, decimal_places=6)
-    result_sector = serializers.CharField()
-    gift_won = serializers.CharField(allow_null=True)
-    balances = serializers.DictField(child=serializers.CharField())
+    bet_ton = serializers.CharField()
+    payment_required = serializers.BooleanField()
+    payment_link = serializers.URLField(allow_null=True, required=False)
+    message = serializers.CharField(required=False)
+    result_sector = serializers.IntegerField(allow_null=True, required=False)
+    gift_won = serializers.DictField(allow_null=True, required=False)
+    balances = serializers.DictField(child=serializers.CharField(), required=False)
 
 
 class OnlinePlayersCountSerializer(serializers.Serializer):
