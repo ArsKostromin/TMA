@@ -213,33 +213,93 @@ class SpinPlayView(APIView):
         bet_ton = data.get("bet_ton", Decimal("0"))
 
         try:
-            # Играем через SpinService
-            game, result = SpinService.play(user, bet_stars, bet_ton)
+            # Валидируем ставку
+            SpinService.validate_bet(bet_stars, bet_ton)
             
-            # Списываем балансы
+            # Проверяем, что у пользователя есть telegram_id
+            if not user.telegram_id:
+                return Response(
+                    {"error": "У аккаунта не указан Telegram ID (telegram_id)"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Если ставка в звёздах - создаём инвойс
             if bet_stars > 0:
-                user.subtract_stars(bet_stars)
+                from games.services.telegram_stars import TelegramStarsService
+                
+                # Создаём игру заранее (со статусом pending - result_sector = None)
+                game = SpinGame.objects.create(
+                    player=user,
+                    bet_stars=bet_stars,
+                    bet_ton=bet_ton,
+                    result_sector=None,  # None означает, что игра еще не сыграна
+                )
+                
+                # Создаём инвойс для оплаты звёздами
+                invoice_result = TelegramStarsService.create_invoice(
+                    user_id=user.telegram_id,
+                    order_id=game.id,
+                    amount_stars=bet_stars,
+                    title="Ставка в рулетку",
+                    description=f"Оплата участия в спин-игре. Ставка: {bet_stars}⭐"
+                )
+                
+                if not invoice_result.get("ok"):
+                    # Если не удалось создать инвойс - удаляем игру
+                    game.delete()
+                    return Response(
+                        {"error": f"Не удалось создать инвойс: {invoice_result.get('error')}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+                
+                # Возвращаем ссылку на оплату
+                return Response({
+                    "game_id": game.id,
+                    "payment_required": True,
+                    "payment_link": invoice_result.get("invoice_link"),
+                    "bet_stars": bet_stars,
+                    "bet_ton": str(bet_ton),
+                    "message": "Оплатите инвойс для запуска игры"
+                }, status=status.HTTP_200_OK)
+            
+            # Если ставка только в TON (без звёзд) - играем сразу
+            # TON списывается напрямую, так как это внутренняя валюта
             if bet_ton > 0:
+                # Проверяем баланс TON
+                if user.balance_ton < bet_ton:
+                    return Response(
+                        {"error": "Недостаточно TON на балансе"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Списываем TON и играем
                 user.subtract_ton(bet_ton)
-
-            response_data = {
-                "game_id": game.id,
-                "bet_stars": bet_stars,
-                "bet_ton": str(bet_ton),
-                "result_sector": result.index,
-                "gift_won": {
-                    "id": result.gift.id,
-                    "name": result.gift.name,
-                    "image_url": result.gift.image_url,
-                    "price_ton": str(result.gift.price_ton),
-                    "rarity": result.gift.rarity,
-                } if result.gift else None,
-                "balances": {
-                    "stars": user.balance_stars,
-                    "ton": str(user.balance_ton),
+                game, result = SpinService.play(user, bet_stars=0, bet_ton=bet_ton)
+                
+                response_data = {
+                    "game_id": game.id,
+                    "bet_stars": 0,
+                    "bet_ton": str(bet_ton),
+                    "result_sector": result.index,
+                    "gift_won": {
+                        "id": result.gift.id,
+                        "name": result.gift.name,
+                        "image_url": result.gift.image_url,
+                        "price_ton": str(result.gift.price_ton),
+                        "rarity": getattr(result.gift, 'rarity_level', None),
+                    } if result.gift else None,
+                    "balances": {
+                        "stars": user.balance_stars,
+                        "ton": str(user.balance_ton),
+                    }
                 }
-            }
-            return Response(response_data, status=status.HTTP_200_OK)
+                return Response(response_data, status=status.HTTP_200_OK)
+            
+            # Если нет ставки ни в звёздах, ни в TON
+            return Response(
+                {"error": "Нужна ставка в Stars или TON"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
             
         except ValidationError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

@@ -151,28 +151,47 @@ class TelegramPaymentWebhook(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Проверяем, что это запрос на вывод подарка
-            if not invoice_payload.startswith("withdraw_gift_"):
+            # Проверяем тип платежа
+            if invoice_payload.startswith("withdraw_gift_"):
+                # Обрабатываем вывод подарка
+                success = GiftWithdrawalRequestService.process_successful_payment(invoice_payload)
+                
+                if success:
+                    logger.info(f"[TelegramPaymentWebhook] ✅ Платеж за вывод подарка обработан успешно: {invoice_payload}")
+                    return Response(
+                        {"detail": "Платеж обработан успешно"},
+                        status=status.HTTP_200_OK
+                    )
+                else:
+                    logger.error(f"[TelegramPaymentWebhook] ❌ Ошибка обработки платежа за вывод: {invoice_payload}")
+                    return Response(
+                        {"detail": "Ошибка обработки платежа"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+            
+            elif invoice_payload.startswith("spin_game_"):
+                # Обрабатываем оплату за спин игру
+                from games.services.spin_payment import SpinPaymentService
+                success = SpinPaymentService.process_successful_payment(invoice_payload)
+                
+                if success:
+                    logger.info(f"[TelegramPaymentWebhook] ✅ Платеж за спин игру обработан успешно: {invoice_payload}")
+                    return Response(
+                        {"detail": "Платеж обработан успешно, игра запущена"},
+                        status=status.HTTP_200_OK
+                    )
+                else:
+                    logger.error(f"[TelegramPaymentWebhook] ❌ Ошибка обработки платежа за спин: {invoice_payload}")
+                    return Response(
+                        {"detail": "Ошибка обработки платежа"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+            
+            else:
                 logger.warning(f"[TelegramPaymentWebhook] ⚠️ Неизвестный payload: {invoice_payload}")
                 return Response(
                     {"detail": "Неизвестный тип платежа"},
                     status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Обрабатываем успешную оплату
-            success = GiftWithdrawalRequestService.process_successful_payment(invoice_payload)
-            
-            if success:
-                logger.info(f"[TelegramPaymentWebhook] ✅ Платеж обработан успешно: {invoice_payload}")
-                return Response(
-                    {"detail": "Платеж обработан успешно"},
-                    status=status.HTTP_200_OK
-                )
-            else:
-                logger.error(f"[TelegramPaymentWebhook] ❌ Ошибка обработки платежа: {invoice_payload}")
-                return Response(
-                    {"detail": "Ошибка обработки платежа"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
                 
         except Exception as e:
