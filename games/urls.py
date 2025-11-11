@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import GameHistoryView, TopPlayersAPIView, PvPGameHistoryAPIView, PvpGameDetailView, SpinPlayView, SpinWheelView, SpinGameHistoryView, LastPvpWinnerView, OnlinePlayersCountView
+from .views import GameHistoryView, TopPlayersAPIView, PvPGameHistoryAPIView, PvpGameDetailView, SpinPlayView, SpinWheelView, SpinGameHistoryView, LastPvpWinnerView, OnlinePlayersCountView, TelegramStarsWebhookView
 
 urlpatterns = [
     # История игр текущего пользователя (PVP, Daily и пр.) → только авторизованный
@@ -28,4 +28,7 @@ urlpatterns = [
     
     #количество онлайн игроков
     path("online-count/", OnlinePlayersCountView.as_view(), name="online-count"),
+
+    path("telegram/webhook/", TelegramStarsWebhookView.as_view(), name="telegram-stars-webhook"),
+
 ]

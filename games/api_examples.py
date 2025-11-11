@@ -96,21 +96,12 @@ SPIN_PLAY_REQUEST_EXAMPLE = {
 }
 
 SPIN_PLAY_RESPONSE_EXAMPLE = {
-    "game_id": 15,
-    "bet_stars": 100,
-    "bet_ton": "5.00",
-    "result_sector": 3,
-    "gift_won": {
-        "id": 456,
-        "name": "Epic Dragon",
-        "image_url": "https://example.com/dragon.png",
-        "price_ton": "25.00",
-        "rarity": "epic"
-    },
-    "balances": {
-        "stars": 900,
-        "ton": "95.00"
-    }
+    "game_id": 8,
+    "bet_stars": 400,
+    "bet_ton": "0",
+    "payment_required": True,
+    "payment_link": "https://t.me/$1QwvxHKimEhjEAAAwGyRljZRj1Y",
+    "message": "Оплатите инвойс для запуска игры"
 }
 
 # SpinWheelView

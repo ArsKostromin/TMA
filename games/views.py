@@ -1,3 +1,4 @@
+import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -38,6 +39,8 @@ from .api_examples import (
     LAST_WINNER_EXAMPLE,
 )
 
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -240,6 +243,68 @@ class SpinPlayView(APIView):
         except ValidationError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
             
+
+class TelegramStarsWebhookView(APIView):
+    """
+    Принимает уведомления от Telegram о платёжках звёздами.
+    """
+
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        logger.info(f"Webhook received: {data}")
+
+        # ✅ Проверим тип апдейта
+        if data.get("update_type") != "invoice_paid":
+            return Response({"ok": True, "message": "ignored"}, status=200)
+
+        payload = data.get("payload") or {}
+        order_id = payload.get("order_id") or payload.get("custom_data")
+        telegram_user_id = payload.get("user_id") or data.get("user_id")
+
+        if not order_id:
+            logger.error("No order_id in payload")
+            return Response({"ok": False, "error": "missing_order_id"}, status=400)
+
+        try:
+            game = SpinGame.objects.get(id=order_id)
+        except SpinGame.DoesNotExist:
+            logger.error(f"Game {order_id} not found")
+            return Response({"ok": False, "error": "game_not_found"}, status=404)
+
+        user = game.player
+
+        if user.telegram_id != telegram_user_id:
+            logger.warning(f"User mismatch: webhook {telegram_user_id}, game.user {user.telegram_id}")
+
+        # Проверяем — не сыграна ли уже
+        if game.result_sector is not None:
+            return Response({"ok": True, "message": "already_played"}, status=200)
+
+        try:
+            # Запускаем спин
+            game, chosen = SpinService.play(
+                user=user,
+                bet_stars=game.bet_stars,
+                bet_ton=game.bet_ton,
+                game_id=game.id,
+            )
+
+            logger.info(f"Game {game.id} finished. Result sector={chosen.index}")
+
+            return Response(
+                {
+                    "ok": True,
+                    "game_id": game.id,
+                    "result_sector": chosen.index,
+                    "gift_won": getattr(chosen.gift, "name", None),
+                },
+                status=200,
+            )
+
+        except Exception as e:
+            logger.exception("Error processing spin webhook")
+            return Response({"ok": False, "error": str(e)}, status=500)
+
 
 class SpinWheelView(APIView):
     """

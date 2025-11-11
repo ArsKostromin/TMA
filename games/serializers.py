@@ -10,19 +10,6 @@ from gifts.serializers import GiftSerializer
 
 User = get_user_model()
 
-# class GiftSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Gift
-#         fields = [
-#             "id",
-#             "ton_contract_address", 
-#             "name",
-#             "image_url",
-#             "price_ton",
-#             "backdrop",
-#             "symbol",
-#             "symbol",
-#         ]
 
 class GamePlayerSerializer(serializers.ModelSerializer):
     gifts = GiftSerializer(many=True)
