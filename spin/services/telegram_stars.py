@@ -81,6 +81,7 @@ class TelegramStarsService:
 
             invoice_link = data.get("result")
             logger.info(f"✅ Ссылка на инвойс: {invoice_link}")
+            logger.info(f"✅ дата: {data}")
 
             return {
                 "ok": True,
@@ -91,6 +92,7 @@ class TelegramStarsService:
         except requests.RequestException as e:
             logger.exception("❌ Ошибка при запросе к Telegram API")
             return {"ok": False, "error": str(e)}
+
 
     # ========================
     # 🔹 ПРОВЕРКА ВЕБХУКА
