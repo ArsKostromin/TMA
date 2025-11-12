@@ -4,7 +4,7 @@ import logging
 from decimal import Decimal
 from channels.generic.websocket import AsyncWebsocketConsumer
 from games.services.auth import AuthService
-from games.services.spin_bet_service import SpinBetService
+from .services.spin_bet_service import SpinBetService
 from django.core.exceptions import ValidationError
 
 logger = logging.getLogger('games.consumers')
