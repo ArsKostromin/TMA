@@ -32,6 +32,8 @@ class SpinBetService:
         title = "Ставка в рулетку"
         description = f"Оплата участия в спин-игре. Ставка: {bet_stars}⭐"
 
+        logger.warning("вызвался create_invoice_for_stars!Й!!")
+
         # Создаём инвойс через TelegramStarsService (sync -> async)
         invoice_result = await sync_to_async(TelegramStarsService.create_invoice)(
             amount_stars=bet_stars,
