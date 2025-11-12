@@ -16,25 +16,14 @@ class SpinGameConsumer(AsyncWebsocketConsumer):
         from django.contrib.auth.models import AnonymousUser
         self.scope["user"] = AnonymousUser()
         await self.accept()
-        self.socket_id = None
-        logger.info("WebSocket подключён")
+        logger.info(f"WebSocket подключён: {self.channel_name}")
 
     async def disconnect(self, close_code):
-        if self.socket_id:
-            await self.channel_layer.group_discard(f"socket_{self.socket_id}", self.channel_name)
         logger.info(f"WebSocket отключён: {close_code}")
 
     async def receive(self, text_data):
         data = json.loads(text_data)
         token = data.get("token")
-        socket_id = data.get("socket_id")
-
-        if not socket_id:
-            await self.send(json.dumps({"error": "socket_id required"}))
-            return
-
-        self.socket_id = socket_id
-        await self.channel_layer.group_add(f"socket_{socket_id}", self.channel_name)
 
         # --- авторизация ---
         user = await AuthService.get_user_from_token(token)
@@ -51,12 +40,11 @@ class SpinGameConsumer(AsyncWebsocketConsumer):
                 invoice = await SpinBetService.create_invoice_for_stars(
                     user=self.user,
                     bet_stars=int(bet_stars),
-                    socket_id = socket_id
+                    socket_id=self.channel_name  # сервер сам может использовать channel_name
                 )
                 await self.send(json.dumps({
                     "payment_url": invoice.get("payment_link"),
                     "order_id": invoice.get("order_id"),
-                    "socket_id": socket_id
                 }))
                 return
             except ValidationError as e:
