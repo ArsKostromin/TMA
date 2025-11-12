@@ -19,7 +19,7 @@ class SpinService:
     @staticmethod
     def validate_bet(bet_stars, bet_ton):
         if bet_stars:
-            min_stars = Config.get(constants.ROLLS_MIN_STARS, 400, int)
+            min_stars = Config.get(constants.ROLLS_MIN_STARS, 1, int)
             max_stars = Config.get(constants.ROLLS_MAX_STARS, 50000, int)
             if not (min_stars <= bet_stars <= max_stars):
                 raise ValidationError(_(f"Ставка в Stars должна быть от {min_stars} до {max_stars}"))

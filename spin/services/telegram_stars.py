@@ -31,7 +31,6 @@ class TelegramStarsService:
     @classmethod
     def create_invoice(
         cls,
-        order_id: int,
         amount_stars: int,
         title: str = None,
         description: str = None,
@@ -49,21 +48,20 @@ class TelegramStarsService:
 
         # создаём payload для webhook'а
         payload_data = {
-            "order_id": order_id,
             "type": "spin_game",
             "payload": payload  # прокидываем дополнительные данные, например socket_id
         }
 
         payload_body = {
             "title": title or "Ставка в рулетку",
-            "description": description or f"Оплата участия в спин-игре #{order_id}",
+            "description": description or f"Оплата участия в спин-игре",
             "payload": json.dumps(payload_data, ensure_ascii=False),
             "currency": "XTR",  # Telegram Stars = XTR
             "prices": [{"label": "Bet", "amount": amount_stars}],
             "provider_token": "",  # обязательно пустое поле для Stars
         }
 
-        logger.info(f"🧾 Создание Stars-инвойса: game_id={order_id}, amount={amount_stars}")
+        logger.info(f"🧾 Создание Stars-инвойса: amount={amount_stars}")
 
         try:
             response = requests.post(url, json=payload_body, timeout=20)

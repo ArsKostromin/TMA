@@ -31,38 +31,61 @@ logger = logging.getLogger("games.webhook")
 class TelegramStarsWebhookView(APIView):
     """
     Принимает вебхук от Telegram Stars после успешной оплаты.
-    Сейчас просто уведомляет сокет о подтверждении.
+    Извлекает payload (channel_name) и уведомляет WebSocket.
     """
 
     def post(self, request, *args, **kwargs):
         data = request.data
-        logger.info(f"Webhook received: {data}")
+        logger.info(f"🌠 Webhook received: {data}")
 
-        # --- Достаём socket_id из payload ---
-        payload = data.get("payload") or {}
-        if isinstance(payload, str):
-            try:
-                payload = json.loads(payload)
-            except json.JSONDecodeError:
-                payload = {}
+        # --- Проверяем наличие успешного платежа ---
+        try:
+            payment = data.get("message", {}).get("successful_payment", {})
+            if not payment:
+                logger.warning("⚠️ Нет поля successful_payment — пропускаем")
+                return JsonResponse({"error": "no successful_payment"}, status=400)
+        except Exception as e:
+            logger.exception("❌ Ошибка при обработке вебхука")
+            return JsonResponse({"error": str(e)}, status=400)
 
-        socket_id = payload.get("socket_id")
+        # --- Достаём payload из инвойса ---
+        invoice_payload_raw = payment.get("invoice_payload")
+        if not invoice_payload_raw:
+            logger.warning("⚠️ Нет invoice_payload в вебхуке")
+            return JsonResponse({"error": "missing invoice_payload"}, status=400)
+
+        try:
+            payload_data = json.loads(invoice_payload_raw)
+        except json.JSONDecodeError:
+            logger.error(f"❌ Ошибка парсинга payload: {invoice_payload_raw}")
+            payload_data = {}
+
+        # ожидаем {"type": "spin_game", "payload": "имя канала22"}
+        socket_id = payload_data.get("payload")
         if not socket_id:
-            logger.warning("Webhook без socket_id, пропускаем")
-            return JsonResponse({"error": "socket_id missing"}, status=400)
+            logger.warning("⚠️ Webhook без channel_name/payload — пропускаем")
+            return JsonResponse({"error": "missing channel_name"}, status=400)
 
-        # --- Отправляем уведомление в WebSocket через SocketNotifyService ---
-        SocketNotifyService.send_to_socket(
-            socket_id=socket_id,
-            event_type="spin_result",
-            data={
-                "status": "success",
-                "message": "Оплата подтверждена, можно запускать игру",
-                "socket_id": socket_id,
-            },
-        )
+        total_amount = payment.get("total_amount")
+        currency = payment.get("currency")
 
-        logger.info(f"✅ Уведомление отправлено в socket_{socket_id}")
+        # --- Уведомляем WebSocket ---
+        try:
+            SocketNotifyService.send_to_socket(
+                socket_id=socket_id,
+                event_type="spin_result",
+                data={
+                    "status": "success",
+                    "message": "Оплата подтверждена, можно запускать игру 🎰",
+                    "amount": total_amount,
+                    "currency": currency,
+                },
+            )
+            logger.info(f"✅ Уведомление отправлено в канал: {socket_id}")
+        except Exception as e:
+            logger.exception(f"❌ Ошибка при отправке в сокет: {e}")
+            return JsonResponse({"error": "socket_send_failed"}, status=500)
+
         return JsonResponse({"ok": True})
 
 

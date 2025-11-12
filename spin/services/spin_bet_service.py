@@ -18,17 +18,15 @@ class SpinBetService:
             raise ValidationError("У аккаунта не указан Telegram ID (telegram_id)")
 
     @staticmethod
-    async def create_invoice_for_stars(user, bet_stars: int, socket_id: str) -> dict:
+    async def create_invoice_for_stars(user, bet_stars: int, channel_name: str) -> dict:
         """
         Создаёт инвойс для оплаты звёздами. Игра ещё не создаётся.
-        Возвращает ссылку на оплату и уникальный order_id.
         """
         # Проверка пользователя
         await SpinBetService.validate_user(user)
 
         # Генерируем короткий уникальный ID заказа для payload (Telegram требует строку <= 32 байт)
-        order_id = f"{user.id}_{int(time.time())}"  # можно потом мапить на socket_id на сервере
-        payload = f"s{order_id}"  # строго строка, короткая и уникальная
+        payload = channel_name  # строго строка, короткая и уникальная
 
         # Заголовки инвойса
         title = "Ставка в рулетку"
@@ -36,7 +34,6 @@ class SpinBetService:
 
         # Создаём инвойс через TelegramStarsService (sync -> async)
         invoice_result = await sync_to_async(TelegramStarsService.create_invoice)(
-            order_id=order_id,
             amount_stars=bet_stars,
             title=title,
             description=description,
@@ -47,7 +44,6 @@ class SpinBetService:
             raise ValidationError(f"Не удалось создать инвойс: {invoice_result.get('error')}")
 
         return {
-            "order_id": order_id,
             "payment_required": True,
             "payment_link": invoice_result.get("invoice_link"),
             "bet_stars": bet_stars,

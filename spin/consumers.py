@@ -40,11 +40,10 @@ class SpinGameConsumer(AsyncWebsocketConsumer):
                 invoice = await SpinBetService.create_invoice_for_stars(
                     user=self.user,
                     bet_stars=int(bet_stars),
-                    socket_id=self.channel_name  # сервер сам может использовать channel_name
+                    channel_name=self.channel_name  # сервер сам может использовать channel_name
                 )
                 await self.send(json.dumps({
-                    "payment_url": invoice.get("payment_link"),
-                    "order_id": invoice.get("order_id"),
+                    "payment_url": invoice.get("invoice_link"),
                 }))
                 return
             except ValidationError as e:
