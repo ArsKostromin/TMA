@@ -40,7 +40,7 @@ class SpinBetService:
             amount_stars=bet_stars,
             title=title,
             description=description,
-            payload=payload  # ✅ строка, строго <= 32 байт
+            payload=payload 
         )
 
         if not invoice_result.get("ok"):

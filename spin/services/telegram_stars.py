@@ -51,7 +51,7 @@ class TelegramStarsService:
         payload_data = {
             "order_id": order_id,
             "type": "spin_game",
-            **(payload or {})  # прокидываем дополнительные данные, например socket_id
+            "payload": payload  # прокидываем дополнительные данные, например socket_id
         }
 
         payload_body = {
