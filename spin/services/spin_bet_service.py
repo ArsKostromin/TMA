@@ -23,25 +23,31 @@ class SpinBetService:
         Создаёт инвойс для оплаты звёздами. Игра ещё не создаётся.
         Возвращает ссылку на оплату и уникальный order_id.
         """
+        # Проверка пользователя
         await SpinBetService.validate_user(user)
 
-        # Генерируем уникальный ID заказа
-        order_id = f"user_{user.id}_{int(time.time())}"
+        # Генерируем короткий уникальный ID заказа для payload (Telegram требует строку <= 32 байт)
+        order_id = f"{user.id}_{int(time.time())}"  # можно потом мапить на socket_id на сервере
+        payload = f"s{order_id}"  # строго строка, короткая и уникальная
+
+        # Заголовки инвойса
+        title = "Ставка в рулетку"
+        description = f"Оплата участия в спин-игре. Ставка: {bet_stars}⭐"
 
         # Создаём инвойс через TelegramStarsService (sync -> async)
         invoice_result = await sync_to_async(TelegramStarsService.create_invoice)(
             order_id=order_id,
             amount_stars=bet_stars,
-            title="Ставка в рулетку",
-            description=f"Оплата участия в спин-игре. Ставка: {bet_stars}⭐",
-            payload={"socket_id": socket_id}  # ✅ кладём socket_id, чтобы потом пришёл в вебхук
+            title=title,
+            description=description,
+            payload=payload  # ✅ строка, строго <= 32 байт
         )
 
         if not invoice_result.get("ok"):
             raise ValidationError(f"Не удалось создать инвойс: {invoice_result.get('error')}")
 
         return {
-            "order_id": order_id,  # возвращаем уникальный идентификатор
+            "order_id": order_id,
             "payment_required": True,
             "payment_link": invoice_result.get("invoice_link"),
             "bet_stars": bet_stars,
