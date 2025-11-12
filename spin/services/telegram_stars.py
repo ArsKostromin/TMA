@@ -35,7 +35,7 @@ class TelegramStarsService:
         amount_stars: int,
         title: str = None,
         description: str = None,
-        payload: dict = None,  # теперь можно прокидывать payload, например {"socket_id": "xxx"}
+        payload: str = None,  # теперь можно прокидывать payload, например {"socket_id": "xxx"}
     ) -> dict:
         """
         Создаёт ссылку на Telegram Stars-инвойс для Mini App.
