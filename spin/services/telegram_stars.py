@@ -3,12 +3,11 @@ import logging
 import requests
 import json
 from django.conf import settings
-from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 
 logger = logging.getLogger(__name__)
-
 
 class TelegramStarsService:
     """
@@ -36,6 +35,7 @@ class TelegramStarsService:
         amount_stars: int,
         title: str = None,
         description: str = None,
+        payload: dict = None,  # теперь можно прокидывать payload, например {"socket_id": "xxx"}
     ) -> dict:
         """
         Создаёт ссылку на Telegram Stars-инвойс для Mini App.
@@ -51,9 +51,10 @@ class TelegramStarsService:
         payload_data = {
             "order_id": order_id,
             "type": "spin_game",
+            **(payload or {})  # прокидываем дополнительные данные, например socket_id
         }
 
-        payload = {
+        payload_body = {
             "title": title or "Ставка в рулетку",
             "description": description or f"Оплата участия в спин-игре #{order_id}",
             "payload": json.dumps(payload_data, ensure_ascii=False),
@@ -65,7 +66,7 @@ class TelegramStarsService:
         logger.info(f"🧾 Создание Stars-инвойса: game_id={order_id}, amount={amount_stars}")
 
         try:
-            response = requests.post(url, json=payload, timeout=20)
+            response = requests.post(url, json=payload_body, timeout=20)
             data = response.json()
 
             if not data.get("ok"):
@@ -89,6 +90,7 @@ class TelegramStarsService:
             logger.exception("❌ Ошибка при запросе к Telegram API")
             return {"ok": False, "error": str(e)}
 
+            
     # ========================
     # 🔹 ПРОВЕРКА ВЕБХУКА
     # ========================
