@@ -23,11 +23,10 @@ class TelegramStarsService:
         token = getattr(settings, "BOT_TOKEN", None)
         if not token:
             logger.error("❌ BOT_TOKEN не найден в settings.py")
+        else:
+            logger.debug(f"🔑 Получен BOT_TOKEN: {token[:4]}***")
         return token
 
-    # ========================
-    # 🔹 СОЗДАНИЕ ИНВОЙСА
-    # ========================
     @classmethod
     def create_invoice(
         cls,
@@ -62,10 +61,15 @@ class TelegramStarsService:
         }
 
         logger.info(f"🧾 Создание Stars-инвойса: amount={amount_stars}")
+        logger.debug(f"📦 Payload для Telegram: {json.dumps(payload_body, ensure_ascii=False)}")
 
         try:
             response = requests.post(url, json=payload_body, timeout=20)
+            logger.debug(f"➡️ Запрос отправлен: {url}")
+            logger.debug(f"⬅️ Ответ Telegram status_code={response.status_code}")
+
             data = response.json()
+            logger.debug(f"📬 Ответ Telegram API: {json.dumps(data, ensure_ascii=False)}")
 
             if not data.get("ok"):
                 logger.error(f"❌ Ошибка Telegram API: {data}")
@@ -88,7 +92,6 @@ class TelegramStarsService:
             logger.exception("❌ Ошибка при запросе к Telegram API")
             return {"ok": False, "error": str(e)}
 
-            
     # ========================
     # 🔹 ПРОВЕРКА ВЕБХУКА
     # ========================
