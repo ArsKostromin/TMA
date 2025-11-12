@@ -1,8 +1,11 @@
-# games/services/telegram_stars.py
+# spin/services/telegram_stars.py
 import logging
 import requests
 import json
 from django.conf import settings
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
 
 logger = logging.getLogger(__name__)
 
@@ -89,21 +92,29 @@ class TelegramStarsService:
     # ========================
     # 🔹 ПРОВЕРКА ВЕБХУКА
     # ========================
-    @classmethod
-    def verify_webhook_signature(cls, request) -> bool:
-        """
-        Проверяет секретный токен вебхука от Telegram (если задан в settings).
-        """
-        expected = getattr(settings, "TELEGRAM_WEBHOOK_SECRET", None)
-        if not expected:
-            return True  # если не настроен секрет — не проверяем
+class SocketNotifyService:
+    """
+    Сервис для уведомления WebSocket-клиентов.
+    """
 
-        actual = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
-        if not actual:
-            logger.warning("⚠️ Вебхук без X-Telegram-Bot-Api-Secret-Token")
+    @staticmethod
+    def send_to_socket(socket_id: str, event_type: str, data: dict):
+        """
+        Отправляет сообщение в сокет-группу.
+        """
+        if not socket_id:
+            logger.warning("Попытка отправить уведомление без socket_id")
             return False
 
-        valid = actual == expected
-        if not valid:
-            logger.warning(f"🚫 Неверный секрет токен вебхука: {actual}")
-        return valid
+        channel_layer = get_channel_layer()
+
+        async_to_sync(channel_layer.group_send)(
+            f"socket_{socket_id}",
+            {
+                "type": event_type,
+                "data": data,
+            },
+        )
+
+        logger.info(f"Сообщение отправлено в socket_{socket_id}: {event_type}")
+        return True
