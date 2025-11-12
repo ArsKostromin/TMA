@@ -7,7 +7,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('spin.services.telegram_stars')
 
 class TelegramStarsService:
     """
@@ -69,6 +69,7 @@ class TelegramStarsService:
             logger.debug(f"⬅️ Ответ Telegram status_code={response.status_code}")
 
             data = response.json()
+            logger.warning(f"✅ дата: {data}")
             logger.debug(f"📬 Ответ Telegram API: {json.dumps(data, ensure_ascii=False)}")
 
             if not data.get("ok"):
@@ -81,7 +82,6 @@ class TelegramStarsService:
 
             invoice_link = data.get("result")
             logger.info(f"✅ Ссылка на инвойс: {invoice_link}")
-            logger.info(f"✅ дата: {data}")
 
             return {
                 "ok": True,
