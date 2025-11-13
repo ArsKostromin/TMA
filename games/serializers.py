@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework.reverse import reverse
-from .models import Game, GamePlayer, SpinGame, SpinWheelSector
+from .models import Game, GamePlayer
 from gifts.models import Gift
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
