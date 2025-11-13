@@ -123,19 +123,25 @@ class SpinService:
 
     @staticmethod
     def _redistribute_probabilities(removed_sector):
-        """Обнуляем вероятность сектора, с которого убрали подарок, и растягиваем освободившееся на сектор с макс вероятностью."""
+        """Перераспределяем вероятность после того, как подарок удалён.
+        Логика:
+        - обнуляем вероятность сектора, с которого забрали подарок
+        - находим сектор с максимальной вероятностью, который ещё содержит подарок
+        - добавляем к нему освобождённую вероятность
+        """
         sectors = list(SpinWheelSector.objects.all())
         if not sectors:
             return
 
-        # обнуляем сектор, у которого забрали подарок
+        # забираем текущую вероятность сектора и обнуляем её
         removed_prob = float(removed_sector.probability)
         removed_sector.probability = 0.0
         removed_sector.save(update_fields=["probability"])
 
-        # выбираем сектор с максимальной вероятностью, который ещё не пуст
-        active_sectors = [s for s in sectors if s.gift]
+        # ищем сектор с максимальной вероятностью, который ещё содержит подарок
+        active_sectors = [s for s in sectors if s.gift is not None and s.id != removed_sector.id]
         if not active_sectors:
+            # если нет активных секторов — ничего не делаем
             return
 
         max_sector = max(active_sectors, key=lambda s: float(s.probability))
