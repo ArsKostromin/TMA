@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
 
-from games.models import SpinGame, SpinWheelSector
+from spin.models import SpinGame, SpinWheelSector
 from gifts.models import Gift
 from core.models import Config
 from core import constants

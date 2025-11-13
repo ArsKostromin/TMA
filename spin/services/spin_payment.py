@@ -2,8 +2,8 @@
 import logging
 from django.db import transaction
 from rest_framework import status
-from games.models import SpinGame
-from games.services.spin_service import SpinService
+from spin.models import SpinGame
+from .spin_service import SpinService
 
 logger = logging.getLogger(__name__)
 

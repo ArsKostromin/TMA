@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from asgiref.sync import sync_to_async
 from .telegram_stars import TelegramStarsService
-from games.models import SpinGame
+from spin.models import SpinGame
 from .spin_service import SpinService
 import time
 
