@@ -78,8 +78,6 @@ class SpinService:
             base = float(s.probability)
             if s.gift and s.gift.user is None:
                 weights.append(base * boost)
-            elif s.gift:
-                weights.append(0.0)
             else:
                 weights.append(0.0)
 
@@ -138,14 +136,15 @@ class SpinService:
                 user__isnull=True,
             ).exclude(id=won_gift.id).first()
 
+            # не меняем вероятности сектора, если подарка нет
             if replacement:
                 chosen.gift = replacement
                 chosen.save(update_fields=["gift"])
             else:
                 chosen.gift = None
                 chosen.save(update_fields=["gift"])
-                # перераспределяем вероятность на жирный сектор
-                SpinService._redistribute_probabilities()
+                # перераспределяем вероятности только среди пустых секторов
+                SpinService._redistribute_probabilities(only_empty=True)
 
             game.gift_won = won_gift
             game.save(update_fields=["gift_won"])
@@ -153,31 +152,31 @@ class SpinService:
         return game, chosen
 
     @staticmethod
-    def _redistribute_probabilities():
-        """Если удалили подарок — перераспределяем шанс на сектор с макс probability."""
+    def _redistribute_probabilities(only_empty=False):
+        """Перераспределяем вероятность при отсутствии подарков.
+        Если only_empty=True, учитываются только пустые сектора для перераспределения."""
         sectors = list(SpinWheelSector.objects.all())
         if not sectors:
             return
 
-        # считаем общую сумму вероятностей
+        if only_empty:
+            empty_sectors = [s for s in sectors if s.gift is None]
+            if not empty_sectors:
+                return
+            total_prob = sum(float(s.probability) for s in empty_sectors)
+            if total_prob == 0:
+                n = len(empty_sectors)
+                equal_prob = 1.0 / n
+                for s in empty_sectors:
+                    s.probability = equal_prob
+                    s.save(update_fields=["probability"])
+            return
+
+        # обычная перераспределение для всех секторов
         total_prob = sum(float(s.probability) for s in sectors)
         if total_prob == 0:
-            # если все нули — равномерно распределим
             n = len(sectors)
             equal_prob = 1.0 / n
             for s in sectors:
                 s.probability = equal_prob
                 s.save(update_fields=["probability"])
-            return
-
-        # находим сектор с максимальной вероятностью
-        max_sector = max(sectors, key=lambda s: float(s.probability))
-
-        # считаем сколько "освободилось" (пустые сектора)
-        active_sum = sum(float(s.probability) for s in sectors if s.gift)
-        diff = total_prob - active_sum
-
-        if diff > 0:
-            # прибавляем освободившуюся вероятность к самому вероятному
-            max_sector.probability = Decimal(float(max_sector.probability) + diff)
-            max_sector.save(update_fields=["probability"])
