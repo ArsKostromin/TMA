@@ -8,10 +8,6 @@ from .serializers import (
     PublicPvpGameSerializer,
     PvpGameDetailSerializer,
     TopPlayerSerializer,
-    SpinWheelSectorSerializer,
-    SpinGameHistorySerializer,
-    SpinPlayRequestSerializer,
-    SpinPlayResponseSerializer,
     LastWinnerSerializer,
     OnlinePlayersCountSerializer,
 )
@@ -31,10 +27,6 @@ from .api_examples import (
     TOP_PLAYER_EXAMPLE,
     PVP_GAME_HISTORY_EXAMPLE,
     PVP_GAME_DETAIL_EXAMPLE,
-    SPIN_PLAY_REQUEST_EXAMPLE,
-    SPIN_PLAY_RESPONSE_EXAMPLE,
-    SPIN_WHEEL_EXAMPLE,
-    SPIN_GAME_HISTORY_EXAMPLE,
     LAST_WINNER_EXAMPLE,
 )
 
