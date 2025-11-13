@@ -66,31 +66,31 @@ class SpinService:
 
     @staticmethod
     def _weighted_probabilities(sectors, r: float):
-        """Возвращает список весов с учётом ставки."""
+        """Возвращает список весов с учётом ставки, гарантируя ненулевую сумму."""
         alpha = float(Config.get(constants.ROLLS_WEIGHT_ALPHA, Decimal("0.5"), Decimal))
         gamma = float(Config.get(constants.ROLLS_WEIGHT_GAMMA, Decimal("0.5"), Decimal))
-
         alpha = max(0.0, alpha)
         gamma = max(1e-6, gamma)
-
         boost = 1.0 + alpha * (r ** gamma)
-        weights = []
 
+        weights = []
         for s in sectors:
             base = float(s.probability)
             if s.gift and s.gift.user is None:
                 weights.append(base * boost)
             elif s.gift:
-                # если подарок уже занят — шанс 0
                 weights.append(0.0)
             else:
-                # пустой сектор — шанс 0
                 weights.append(0.0)
+
+        # если все нули — распределяем равномерно
+        if sum(weights) == 0:
+            n = len(sectors)
+            weights = [1.0 / n] * n
 
         # нормализация
         total = sum(weights)
-        if total > 0:
-            weights = [w / total for w in weights]
+        weights = [w / total for w in weights]
         return weights
 
     @staticmethod
