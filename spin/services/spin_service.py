@@ -91,10 +91,10 @@ class SpinService:
 
     @staticmethod
     def play(user, bet_stars=0, bet_ton=Decimal("0")):
-        """Создаём игру, учитываем ставку в весах, выбираем сектор, начисляем приз."""
+        """Создаёт игру, выбирает сектор, назначает выигрыш, перераспределяет подарки."""
         SpinService.validate_bet(bet_stars, bet_ton)
 
-        # Списываем балансы перед игрой
+        # списываем баланс
         if bet_stars > 0:
             user.subtract_stars(bet_stars)
         if bet_ton > 0:
@@ -106,7 +106,6 @@ class SpinService:
             bet_ton=bet_ton,
         )
 
-        # Получаем сектора, исключая топовые (с нулевым шансом)
         sectors = list(SpinWheelSector.objects.filter(probability__gt=0))
         if not sectors:
             raise ValidationError(_("Колесо не настроено!"))
@@ -120,19 +119,34 @@ class SpinService:
         game.gift_won = chosen.gift
         game.save(update_fields=["result_sector", "gift_won"])
 
-        # Создаём НОВЫЙ подарок для пользователя на основе выбранного сектора
+        # если выиграл подарок
         if chosen.gift:
-            new_gift = Gift.objects.create(
-                user=user,
-                tg_nft_id=f"spin_{game.id}_{chosen.gift.id}",  # уникальный ID для спина
-                name=chosen.gift.name,
-                description=chosen.gift.description,
-                image_url=chosen.gift.image_url,
-                price_ton=chosen.gift.price_ton,
-                rarity=chosen.gift.rarity,
-            )
-            # Обновляем игру с новым подарком
-            game.gift_won = new_gift
+            won_gift = chosen.gift
+            # привязываем к пользователю
+            won_gift.user = user
+            won_gift.save(update_fields=["user"])
+
+            # ищем замену для слота
+            replacement = Gift.objects.filter(
+                name=won_gift.name,
+                image_url=won_gift.image_url,
+                ton_contract_address=won_gift.ton_contract_address,
+                price_ton=won_gift.price_ton,
+                rarity_level=won_gift.rarity_level,
+                user__isnull=True,
+            ).exclude(id=won_gift.id).first()
+
+            if replacement:
+                # ставим в слот новую копию
+                chosen.gift = replacement
+                chosen.save(update_fields=["gift"])
+            else:
+                # очищаем слот
+                chosen.gift = None
+                chosen.save(update_fields=["gift"])
+
+            # сохраняем игру с привязкой к подарку
+            game.gift_won = won_gift
             game.save(update_fields=["gift_won"])
 
         return game, chosen
