@@ -94,26 +94,6 @@ class SpinService:
         return weights
 
     @staticmethod
-    def _redistribute_probabilities():
-        """Если удалили подарок — перераспределяем шанс на сектор с макс probability."""
-        sectors = list(SpinWheelSector.objects.all())
-        if not sectors:
-            return
-
-        # считаем общую сумму вероятностей и находим максимум
-        total_prob = sum(float(s.probability) for s in sectors)
-        max_sector = max(sectors, key=lambda s: float(s.probability))
-
-        # считаем сколько “освободилось” (если есть нули)
-        active_sum = sum(float(s.probability) for s in sectors if s.gift)
-        diff = total_prob - active_sum
-
-        if diff > 0:
-            # прибавляем свободный шанс к самому вероятному
-            max_sector.probability = Decimal(float(max_sector.probability) + diff)
-            max_sector.save(update_fields=["probability"])
-
-    @staticmethod
     def play(user, bet_stars=0, bet_ton=Decimal("0")):
         """Создаёт игру, выбирает сектор, назначает выигрыш, перераспределяет подарки."""
         SpinService.validate_bet(bet_stars, bet_ton)
