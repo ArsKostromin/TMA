@@ -171,3 +171,21 @@ class SpinService:
             game.save(update_fields=["gift_won"])
 
         return game, chosen
+
+    @staticmethod
+    def _redistribute_probabilities():
+        """Растягивает вероятность самого популярного гифта, если общая сумма весов обнулилась."""
+        sectors = list(SpinWheelSector.objects.all())
+        total = sum(float(s.probability) for s in sectors)
+        if total > 0:
+            return  # всё ок
+
+        # если все нули — равномерно распределим
+        n = len(sectors)
+        if n == 0:
+            return
+
+        equal_prob = 1.0 / n
+        for s in sectors:
+            s.probability = equal_prob
+            s.save(update_fields=["probability"])
