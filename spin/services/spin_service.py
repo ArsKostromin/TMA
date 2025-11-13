@@ -19,7 +19,7 @@ class SpinService:
     @staticmethod
     def validate_bet(bet_stars, bet_ton):
         if bet_stars:
-            min_stars = Config.get(constants.ROLLS_MIN_STARS, 1, int)
+            min_stars = Config.get(constants.ROLLS_MIN_STARS, 400, int)
             max_stars = Config.get(constants.ROLLS_MAX_STARS, 50000, int)
             if not (min_stars <= bet_stars <= max_stars):
                 raise ValidationError(_(f"Ставка в Stars должна быть от {min_stars} до {max_stars}"))
@@ -90,33 +90,21 @@ class SpinService:
         return weights
 
     @staticmethod
-    def play(user, bet_stars=0, bet_ton=Decimal("0"), game_id=None):
-        """
-        Создаём игру, учитываем ставку в весах, выбираем сектор, начисляем приз.
-        
-        Args:
-            user: Пользователь
-            bet_stars: Ставка в звёздах (уже оплачена через Telegram, не списываем)
-            bet_ton: Ставка в TON (списывается только если game_id не указан)
-            game_id: ID существующей игры (если игра создана заранее для оплаты)
-        """
+    def play(user, bet_stars=0, bet_ton=Decimal("0")):
+        """Создаём игру, учитываем ставку в весах, выбираем сектор, начисляем приз."""
         SpinService.validate_bet(bet_stars, bet_ton)
 
-        # Списываем только TON (если игра не создана заранее)
-        # Звёзды уже списаны Telegram при оплате инвойса
-        if game_id:
-            # Игра уже создана, просто обновляем её
-            game = SpinGame.objects.get(id=game_id, player=user, result_sector__isnull=True)
-        else:
-            # Создаём новую игру и списываем TON
-            if bet_ton > 0:
-                user.subtract_ton(bet_ton)
-            
-            game = SpinGame.objects.create(
-                player=user,
-                bet_stars=bet_stars,
-                bet_ton=bet_ton,
-            )
+        # Списываем балансы перед игрой
+        if bet_stars > 0:
+            user.subtract_stars(bet_stars)
+        if bet_ton > 0:
+            user.subtract_ton(bet_ton)
+
+        game = SpinGame.objects.create(
+            player=user,
+            bet_stars=bet_stars,
+            bet_ton=bet_ton,
+        )
 
         # Получаем сектора, исключая топовые (с нулевым шансом)
         sectors = list(SpinWheelSector.objects.filter(probability__gt=0))
@@ -134,18 +122,14 @@ class SpinService:
 
         # Создаём НОВЫЙ подарок для пользователя на основе выбранного сектора
         if chosen.gift:
-            # Используем ton_contract_address как уникальный ID
             new_gift = Gift.objects.create(
                 user=user,
-                ton_contract_address=f"spin_{game.id}_{chosen.gift.id}",  # уникальный ID для спина
+                tg_nft_id=f"spin_{game.id}_{chosen.gift.id}",  # уникальный ID для спина
                 name=chosen.gift.name,
+                description=chosen.gift.description,
                 image_url=chosen.gift.image_url,
                 price_ton=chosen.gift.price_ton,
-                rarity_level=getattr(chosen.gift, 'rarity_level', None),
-                symbol=getattr(chosen.gift, 'symbol', None),
-                model_name=getattr(chosen.gift, 'model_name', None),
-                pattern_name=getattr(chosen.gift, 'pattern_name', None),
-                backdrop=getattr(chosen.gift, 'backdrop', None),
+                rarity=chosen.gift.rarity,
             )
             # Обновляем игру с новым подарком
             game.gift_won = new_gift

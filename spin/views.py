@@ -134,29 +134,34 @@ class SpinPlayView(APIView):
         bet_ton = data.get("bet_ton", Decimal("0"))
 
         try:
-            from .services.spin_bet_service import SpinBetService
-            from .utils.spin_response import format_spin_response
+            # Играем через SpinService
+            game, result = SpinService.play(user, bet_stars, bet_ton)
             
-            # Валидируем ставку
-            SpinService.validate_bet(bet_stars, bet_ton)
-            
-            # Обрабатываем ставку через сервис
+            # Списываем балансы
             if bet_stars > 0:
-                # Ставка в звёздах - создаём инвойс
-                result = SpinBetService.create_bet_with_stars(user, bet_stars, bet_ton)
-            elif bet_ton > 0:
-                # Ставка только в TON - играем сразу
-                result = SpinBetService.create_bet_with_ton(user, bet_ton)
-            else:
-                return Response(
-                    {"error": "Нужна ставка в Stars или TON"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Форматируем ответ
-            response_data = format_spin_response(result)
-            
+                user.subtract_stars(bet_stars)
+            if bet_ton > 0:
+                user.subtract_ton(bet_ton)
+
+            response_data = {
+                "game_id": game.id,
+                "bet_stars": bet_stars,
+                "bet_ton": str(bet_ton),
+                "result_sector": result.index,
+                "gift_won": {
+                    "id": result.gift.id,
+                    "name": result.gift.name,
+                    "image_url": result.gift.image_url,
+                    "price_ton": str(result.gift.price_ton),
+                    "rarity": result.gift.rarity,
+                } if result.gift else None,
+                "balances": {
+                    "stars": user.balance_stars,
+                    "ton": str(user.balance_ton),
+                }
+            }
             return Response(response_data, status=status.HTTP_200_OK)
             
         except ValidationError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            
