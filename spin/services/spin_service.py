@@ -1,4 +1,4 @@
-# games/services/spin.py
+# games/services/spin_service.py
 import math
 import random
 from decimal import Decimal
@@ -13,6 +13,7 @@ from core import constants
 
 def _clamp(x, lo=0.0, hi=1.0):
     return max(lo, min(hi, x))
+
 
 
 class SpinService:
@@ -33,6 +34,7 @@ class SpinService:
         if not bet_stars and not bet_ton:
             raise ValidationError(_("Нужна ставка в Stars или TON"))
 
+
     @staticmethod
     def _bet_ratio(bet_stars: int, bet_ton: Decimal) -> float:
         """Нормализованный коэффициент ставки r ∈ [0..1], учитывает обе валюты (если заданы)."""
@@ -41,16 +43,13 @@ class SpinService:
         min_ton = Config.get(constants.ROLLS_MIN_TON, Decimal("1.5"), Decimal)
         max_ton = Config.get(constants.ROLLS_MAX_TON, Decimal("50.0"), Decimal)
 
-        # Stars → [0..1]
         if bet_stars:
             denom_s = max(1, (max_stars - min_stars))
             r_stars = _clamp((bet_stars - min_stars) / denom_s)
         else:
             r_stars = 0.0
 
-        # TON → [0..1]
         if bet_ton and (max_ton > min_ton):
-            # переводим в float аккуратно — для вероятностей подходит
             denom_t = float(max_ton - min_ton)
             r_ton = _clamp((float(bet_ton) - float(min_ton)) / denom_t)
         else:
@@ -67,14 +66,17 @@ class SpinService:
         else:
             return r_ton
 
+
     @staticmethod
     def _weighted_probabilities(sectors, r: float):
-        """Возвращает список весов с учётом ставки:
-        вес призовых секторов умножаем на (1 + ALPHA * r**GAMMA)."""
+        """
+        Возвращает список весов с учётом ставки:
+        вес призовых секторов умножаем на (1 + ALPHA * r**GAMMA).
+        Сектора без гифтов не участвуют, их вероятность перераспределяется.
+        """
         alpha = float(Config.get(constants.ROLLS_WEIGHT_ALPHA, Decimal("0.5"), Decimal))   # макс буст = +50%
         gamma = float(Config.get(constants.ROLLS_WEIGHT_GAMMA, Decimal("0.5"), Decimal))   # кривизна (0.5 = sqrt)
 
-        # Защита от мусора
         alpha = max(0.0, alpha)
         gamma = max(1e-6, gamma)
 
@@ -83,11 +85,19 @@ class SpinService:
         weights = []
         for s in sectors:
             base = float(s.probability)
-            if s.gift:  # бустим только призовые сектора
+            # бустим только если есть подарок без владельца
+            if s.gift and s.gift.user is None:
                 weights.append(base * boost)
             else:
-                weights.append(base)
+                # пустые или выданные подарки = 0
+                weights.append(0.0)
+
+        # растягиваем вероятности, если есть пустые
+        total = sum(weights)
+        if total > 0:
+            weights = [w / total for w in weights]
         return weights
+
 
     @staticmethod
     def play(user, bet_stars=0, bet_ton=Decimal("0")):
@@ -122,22 +132,25 @@ class SpinService:
         # если выиграл подарок
         if chosen.gift:
             won_gift = chosen.gift
+            # если подарок уже был кем-то взят — скипаем
+            if won_gift.user is not None:
+                chosen.gift = None
+                chosen.save(update_fields=["gift"])
+                return game, chosen
+
             # привязываем к пользователю
             won_gift.user = user
             won_gift.save(update_fields=["user"])
 
-            # ищем замену для слота
+            # ищем замену для этого слота (по имени, редкости и модели)
             replacement = Gift.objects.filter(
                 name=won_gift.name,
-                image_url=won_gift.image_url,
-                ton_contract_address=won_gift.ton_contract_address,
-                price_ton=won_gift.price_ton,
                 rarity_level=won_gift.rarity_level,
+                model_name=won_gift.model_name,
                 user__isnull=True,
             ).exclude(id=won_gift.id).first()
 
             if replacement:
-                # ставим в слот новую копию
                 chosen.gift = replacement
                 chosen.save(update_fields=["gift"])
             else:
@@ -145,8 +158,44 @@ class SpinService:
                 chosen.gift = None
                 chosen.save(update_fields=["gift"])
 
-            # сохраняем игру с привязкой к подарку
+                # перераспределяем вероятности между нищими гифтовыми секторами
+                SpinService._rebalance_probabilities()
+
             game.gift_won = won_gift
             game.save(update_fields=["gift_won"])
 
         return game, chosen
+
+
+    @staticmethod
+    def _rebalance_probabilities():
+        """
+        Если какие-то сектора пустые — перераспределяет их вероятность
+        между оставшимися секторами с активными гифтовыми слотами.
+        """
+        sectors = list(SpinWheelSector.objects.all())
+        total_prob = sum(float(s.probability) for s in sectors)
+        if total_prob <= 0:
+            return
+
+        active = [s for s in sectors if s.gift and s.gift.user is None]
+        inactive = [s for s in sectors if not s.gift or (s.gift and s.gift.user is not None)]
+
+        if not active:
+            return  # нечего растягивать
+
+        # сколько шанса освободилось
+        freed_prob = sum(float(s.probability) for s in inactive)
+        if freed_prob <= 0:
+            return
+
+        # равномерно добавляем ко всем активным
+        add_per_sector = freed_prob / len(active)
+        for s in active:
+            s.probability = Decimal(float(s.probability) + add_per_sector)
+            s.save(update_fields=["probability"])
+
+        # обнуляем пустые
+        for s in inactive:
+            s.probability = Decimal("0.00")
+            s.save(update_fields=["probability"])
