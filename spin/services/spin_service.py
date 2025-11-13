@@ -174,18 +174,30 @@ class SpinService:
 
     @staticmethod
     def _redistribute_probabilities():
-        """Растягивает вероятность самого популярного гифта, если общая сумма весов обнулилась."""
+        """Если удалили подарок — перераспределяем шанс на сектор с макс probability."""
         sectors = list(SpinWheelSector.objects.all())
-        total = sum(float(s.probability) for s in sectors)
-        if total > 0:
-            return  # всё ок
-
-        # если все нули — равномерно распределим
-        n = len(sectors)
-        if n == 0:
+        if not sectors:
             return
 
-        equal_prob = 1.0 / n
-        for s in sectors:
-            s.probability = equal_prob
-            s.save(update_fields=["probability"])
+        # считаем общую сумму вероятностей
+        total_prob = sum(float(s.probability) for s in sectors)
+        if total_prob == 0:
+            # если все нули — равномерно распределим
+            n = len(sectors)
+            equal_prob = 1.0 / n
+            for s in sectors:
+                s.probability = equal_prob
+                s.save(update_fields=["probability"])
+            return
+
+        # находим сектор с максимальной вероятностью
+        max_sector = max(sectors, key=lambda s: float(s.probability))
+
+        # считаем сколько "освободилось" (пустые сектора)
+        active_sum = sum(float(s.probability) for s in sectors if s.gift)
+        diff = total_prob - active_sum
+
+        if diff > 0:
+            # прибавляем освободившуюся вероятность к самому вероятному
+            max_sector.probability = Decimal(float(max_sector.probability) + diff)
+            max_sector.save(update_fields=["probability"])
