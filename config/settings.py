@@ -59,6 +59,7 @@ INSTALLED_APPS = [
 
     'user',
     'games',
+    'spin',
     'core',
     'gifts',
     'transactions',
