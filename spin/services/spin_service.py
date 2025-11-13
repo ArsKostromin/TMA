@@ -35,43 +35,27 @@ class SpinService:
 
     @staticmethod
     def _bet_ratio(bet_stars: int, bet_ton: Decimal) -> float:
-        """Нормализованный коэффициент ставки r ∈ [0..1], учитывает обе валюты (если заданы)."""
         min_stars = Config.get(constants.ROLLS_MIN_STARS, 400, int)
         max_stars = Config.get(constants.ROLLS_MAX_STARS, 50000, int)
         min_ton = Config.get(constants.ROLLS_MIN_TON, Decimal("1.5"), Decimal)
         max_ton = Config.get(constants.ROLLS_MAX_TON, Decimal("50.0"), Decimal)
 
-        if bet_stars:
-            denom_s = max(1, (max_stars - min_stars))
-            r_stars = _clamp((bet_stars - min_stars) / denom_s)
-        else:
-            r_stars = 0.0
-
-        if bet_ton and (max_ton > min_ton):
-            denom_t = float(max_ton - min_ton)
-            r_ton = _clamp((float(bet_ton) - float(min_ton)) / denom_t)
-        else:
-            r_ton = 0.0
+        r_stars = _clamp((bet_stars - min_stars) / max(1, max_stars - min_stars)) if bet_stars else 0.0
+        r_ton = _clamp((float(bet_ton) - float(min_ton)) / float(max_ton - min_ton)) if bet_ton else 0.0
 
         w_stars = float(Config.get(constants.ROLLS_WEIGHT_W_STARS, Decimal("1.0"), Decimal))
         w_ton = float(Config.get(constants.ROLLS_WEIGHT_W_TON, Decimal("1.0"), Decimal))
 
         if r_stars and r_ton:
-            w_sum = max(1e-9, w_stars + w_ton)
-            return _clamp((w_stars * r_stars + w_ton * r_ton) / w_sum)
-        elif r_stars:
-            return r_stars
-        else:
-            return r_ton
+            return _clamp((w_stars * r_stars + w_ton * r_ton) / max(1e-9, w_stars + w_ton))
+        return r_stars or r_ton
 
     @staticmethod
     def _weighted_probabilities(sectors, r: float):
-        """Возвращает список весов с учётом ставки, гарантируя ненулевую сумму."""
+        """Весовые коэффициенты с учётом ставки."""
         alpha = float(Config.get(constants.ROLLS_WEIGHT_ALPHA, Decimal("0.5"), Decimal))
         gamma = float(Config.get(constants.ROLLS_WEIGHT_GAMMA, Decimal("0.5"), Decimal))
-        alpha = max(0.0, alpha)
-        gamma = max(1e-6, gamma)
-        boost = 1.0 + alpha * (r ** gamma)
+        boost = 1.0 + max(0.0, alpha) * (r ** max(1e-6, gamma))
 
         weights = []
         for s in sectors:
@@ -81,19 +65,15 @@ class SpinService:
             else:
                 weights.append(0.0)
 
-        # если все нули — распределяем равномерно
         if sum(weights) == 0:
             n = len(sectors)
             weights = [1.0 / n] * n
 
-        # нормализация
         total = sum(weights)
-        weights = [w / total for w in weights]
-        return weights
+        return [w / total for w in weights]
 
     @staticmethod
     def play(user, bet_stars=0, bet_ton=Decimal("0")):
-        """Создаёт игру, выбирает сектор, назначает выигрыш, перераспределяет подарки."""
         SpinService.validate_bet(bet_stars, bet_ton)
 
         if bet_stars > 0:
@@ -101,11 +81,7 @@ class SpinService:
         if bet_ton > 0:
             user.subtract_ton(bet_ton)
 
-        game = SpinGame.objects.create(
-            player=user,
-            bet_stars=bet_stars,
-            bet_ton=bet_ton,
-        )
+        game = SpinGame.objects.create(player=user, bet_stars=bet_stars, bet_ton=bet_ton)
 
         sectors = list(SpinWheelSector.objects.filter(probability__gt=0))
         if not sectors:
@@ -113,20 +89,17 @@ class SpinService:
 
         r = SpinService._bet_ratio(bet_stars, bet_ton)
         weights = SpinService._weighted_probabilities(sectors, r)
-
         chosen = random.choices(sectors, weights=weights, k=1)[0]
 
         game.result_sector = chosen.index
         game.gift_won = chosen.gift
         game.save(update_fields=["result_sector", "gift_won"])
 
-        # если выиграл подарок
         if chosen.gift:
             won_gift = chosen.gift
             won_gift.user = user
             won_gift.save(update_fields=["user"])
 
-            # ищем аналог (незанятый)
             replacement = Gift.objects.filter(
                 name=won_gift.name,
                 image_url=won_gift.image_url,
@@ -136,47 +109,35 @@ class SpinService:
                 user__isnull=True,
             ).exclude(id=won_gift.id).first()
 
-            # не меняем вероятности сектора, если подарка нет
             if replacement:
                 chosen.gift = replacement
-                chosen.save(update_fields=["gift"])
             else:
                 chosen.gift = None
-                chosen.save(update_fields=["gift"])
-                # перераспределяем вероятности только среди пустых секторов
-                SpinService._redistribute_probabilities(only_empty=True)
+                SpinService._redistribute_probabilities(chosen)
 
+            chosen.save(update_fields=["gift"])
             game.gift_won = won_gift
             game.save(update_fields=["gift_won"])
 
         return game, chosen
 
     @staticmethod
-    def _redistribute_probabilities(only_empty=False):
-        """Перераспределяем вероятность при отсутствии подарков.
-        Если only_empty=True, учитываются только пустые сектора для перераспределения."""
+    def _redistribute_probabilities(removed_sector):
+        """Обнуляем вероятность сектора, с которого убрали подарок, и растягиваем освободившееся на сектор с макс вероятностью."""
         sectors = list(SpinWheelSector.objects.all())
         if not sectors:
             return
 
-        if only_empty:
-            empty_sectors = [s for s in sectors if s.gift is None]
-            if not empty_sectors:
-                return
-            total_prob = sum(float(s.probability) for s in empty_sectors)
-            if total_prob == 0:
-                n = len(empty_sectors)
-                equal_prob = 1.0 / n
-                for s in empty_sectors:
-                    s.probability = equal_prob
-                    s.save(update_fields=["probability"])
+        # обнуляем сектор, у которого забрали подарок
+        removed_prob = float(removed_sector.probability)
+        removed_sector.probability = 0.0
+        removed_sector.save(update_fields=["probability"])
+
+        # выбираем сектор с максимальной вероятностью, который ещё не пуст
+        active_sectors = [s for s in sectors if s.gift]
+        if not active_sectors:
             return
 
-        # обычная перераспределение для всех секторов
-        total_prob = sum(float(s.probability) for s in sectors)
-        if total_prob == 0:
-            n = len(sectors)
-            equal_prob = 1.0 / n
-            for s in sectors:
-                s.probability = equal_prob
-                s.save(update_fields=["probability"])
+        max_sector = max(active_sectors, key=lambda s: float(s.probability))
+        max_sector.probability = Decimal(float(max_sector.probability) + removed_prob)
+        max_sector.save(update_fields=["probability"])
