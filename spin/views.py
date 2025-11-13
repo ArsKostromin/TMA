@@ -20,6 +20,7 @@ from .serializers import (
 from .api_examples import (
     SPIN_WHEEL_EXAMPLE,
     SPIN_GAME_HISTORY_EXAMPLE,
+    SPIN_PLAY_RESPONSE_EXAMPLE
 )
 from spin.services.spin_service import SpinService
 from spin.services.telegram_stars import SocketNotifyService
@@ -38,55 +39,6 @@ class TelegramStarsWebhookView(APIView):
         data = request.data
         logger.info(f"🌠 Webhook received: {data}")
 
-        # --- Проверяем наличие успешного платежа ---
-        try:
-            payment = data.get("message", {}).get("successful_payment", {})
-            if not payment:
-                logger.warning("⚠️ Нет поля successful_payment — пропускаем")
-                return JsonResponse({"error": "no successful_payment"}, status=400)
-        except Exception as e:
-            logger.exception("❌ Ошибка при обработке вебхука")
-            return JsonResponse({"error": str(e)}, status=400)
-
-        # --- Достаём payload из инвойса ---
-        invoice_payload_raw = payment.get("invoice_payload")
-        if not invoice_payload_raw:
-            logger.warning("⚠️ Нет invoice_payload в вебхуке")
-            return JsonResponse({"error": "missing invoice_payload"}, status=400)
-
-        try:
-            payload_data = json.loads(invoice_payload_raw)
-        except json.JSONDecodeError:
-            logger.error(f"❌ Ошибка парсинга payload: {invoice_payload_raw}")
-            payload_data = {}
-
-        # ожидаем {"type": "spin_game", "payload": "имя канала22"}
-        socket_id = payload_data.get("payload")
-        if not socket_id:
-            logger.warning("⚠️ Webhook без channel_name/payload — пропускаем")
-            return JsonResponse({"error": "missing channel_name"}, status=400)
-
-        total_amount = payment.get("total_amount")
-        currency = payment.get("currency")
-
-        # --- Уведомляем WebSocket ---
-        try:
-            SocketNotifyService.send_to_socket(
-                socket_id=socket_id,
-                event_type="spin_result",
-                data={
-                    "status": "success",
-                    "message": "Оплата подтверждена, можно запускать игру 🎰",
-                    "amount": total_amount,
-                    "currency": currency,
-                },
-            )
-            logger.info(f"✅ Уведомление отправлено в канал: {socket_id}")
-        except Exception as e:
-            logger.exception(f"❌ Ошибка при отправке в сокет: {e}")
-            return JsonResponse({"error": "socket_send_failed"}, status=500)
-
-        return JsonResponse({"ok": True})
 
 
 class SpinWheelView(APIView):
@@ -148,3 +100,63 @@ class SpinGameHistoryView(ListAPIView):
             .select_related("gift_won")
             .order_by("-played_at")
         )
+
+
+class SpinPlayView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Игра в спин",
+        description="Запускает игру в спин с указанными ставками в Stars и TON",
+        request=SpinPlayRequestSerializer,
+        responses={
+            200: OpenApiResponse(
+                response=SpinPlayResponseSerializer,
+                description="Успешный ответ",
+                examples=[
+                    OpenApiExample(
+                        name="Пример ответа",
+                        value=SPIN_PLAY_RESPONSE_EXAMPLE
+                    )
+                ],
+            ),
+            400: OpenApiResponse(description="Ошибка валидации"),
+        },
+        tags=["Games"],
+    )
+    def post(self, request):
+        serializer = SpinPlayRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        user = request.user
+        bet_stars = data.get("bet_stars", 0)
+        bet_ton = data.get("bet_ton", Decimal("0"))
+
+        try:
+            from .services.spin_bet_service import SpinBetService
+            from .utils.spin_response import format_spin_response
+            
+            # Валидируем ставку
+            SpinService.validate_bet(bet_stars, bet_ton)
+            
+            # Обрабатываем ставку через сервис
+            if bet_stars > 0:
+                # Ставка в звёздах - создаём инвойс
+                result = SpinBetService.create_bet_with_stars(user, bet_stars, bet_ton)
+            elif bet_ton > 0:
+                # Ставка только в TON - играем сразу
+                result = SpinBetService.create_bet_with_ton(user, bet_ton)
+            else:
+                return Response(
+                    {"error": "Нужна ставка в Stars или TON"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Форматируем ответ
+            response_data = format_spin_response(result)
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+            
+        except ValidationError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

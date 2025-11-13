@@ -13,6 +13,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("user/", include("user.urls")),
     path("games/", include("games.urls")),
+    path("games/", include("spin.urls")),
     path("Inventory/", include("gifts.urls")),
     path("api/transactions/", include("transactions.urls")),
     path("", include("raffle.urls")),
