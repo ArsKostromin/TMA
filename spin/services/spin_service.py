@@ -95,11 +95,13 @@ class SpinService:
         game.gift_won = chosen.gift
         game.save(update_fields=["result_sector", "gift_won"])
 
+        # если у сектора есть подарок
         if chosen.gift:
             won_gift = chosen.gift
             won_gift.user = user
             won_gift.save(update_fields=["user"])
 
+            # пробуем найти замену
             replacement = Gift.objects.filter(
                 name=won_gift.name,
                 image_url=won_gift.image_url,
@@ -109,13 +111,15 @@ class SpinService:
                 user__isnull=True,
             ).exclude(id=won_gift.id).first()
 
+            # если нашли замену — ставим её
             if replacement:
                 chosen.gift = replacement
+                chosen.save(update_fields=["gift"])
             else:
-                chosen.gift = None
+                # если подарков больше нет — перераспределяем и удаляем сектор
                 SpinService._redistribute_probabilities(chosen)
+                # не вызываем chosen.save() — он уже мёртв после delete()
 
-            chosen.save(update_fields=["gift"])
             game.gift_won = won_gift
             game.save(update_fields=["gift_won"])
 
@@ -130,12 +134,13 @@ class SpinService:
             return
 
         removed_prob = float(removed_sector.probability)
+        removed_id = removed_sector.id
 
-        # удаляем сектор из БД
+        # удаляем сектор из базы
         removed_sector.delete()
 
         # оставшиеся сектора
-        remaining = [s for s in sectors if s.id != removed_sector.id]
+        remaining = [s for s in sectors if s.id != removed_id]
 
         if not remaining:
             return
