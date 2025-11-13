@@ -88,52 +88,6 @@ class TopPlayerSerializer(serializers.ModelSerializer):
         return total or 0
 
 
-class SpinWheelSectorSerializer(serializers.ModelSerializer):
-    gift = GiftSerializer()
-
-    class Meta:
-        model = SpinWheelSector
-        fields = [
-            "index",
-            "probability",
-            "gift",
-        ]
-
-
-class SpinGameHistorySerializer(serializers.ModelSerializer):
-    gift_won = GiftSerializer(read_only=True)
-
-    class Meta:
-        model = SpinGame
-        fields = [
-            "id",
-            "bet_stars",
-            "bet_ton",
-            "win_amount",
-            "gift_won",
-            "result_sector",
-            "played_at",
-        ]
-
-
-class SpinPlayRequestSerializer(serializers.Serializer):
-    bet_stars = serializers.IntegerField(required=False, min_value=0, default=0)
-    bet_ton = serializers.DecimalField(
-        required=False, max_digits=18, decimal_places=6, min_value=0, default=Decimal("0")
-    )
-
-class SpinPlayResponseSerializer(serializers.Serializer):
-    game_id = serializers.IntegerField()
-    bet_stars = serializers.IntegerField()
-    bet_ton = serializers.CharField()
-    payment_required = serializers.BooleanField()
-    payment_link = serializers.URLField(allow_null=True, required=False)
-    message = serializers.CharField(required=False)
-    result_sector = serializers.IntegerField(allow_null=True, required=False)
-    gift_won = serializers.DictField(allow_null=True, required=False)
-    balances = serializers.DictField(child=serializers.CharField(), required=False)
-
-
 class OnlinePlayersCountSerializer(serializers.Serializer):
     online_count = serializers.IntegerField()
 
