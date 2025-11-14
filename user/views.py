@@ -102,10 +102,19 @@ class CreateStarsInvoiceView(APIView):
         summary="Создать Telegram Stars инвойс",
         description=(
             "Создаёт ссылку на оплату через Telegram Stars. "
-            "Пользователь берётся из токена авторизации. "
-            "Возвращает invoice_link, который Mini App должен открыть."
+            "Пользователь определяется по токену авторизации. "
+            "На вход принимает сумму в звёздах."
         ),
         request=CreateStarsInvoiceSerializer,
+        examples=[
+            OpenApiExample(
+                name="Пример запроса",
+                value={
+                    "amount_stars": 150
+                },
+                request_only=True,
+            )
+        ],
         responses={
             200: OpenApiResponse(
                 response=OpenApiExample(
