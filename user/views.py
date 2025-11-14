@@ -123,12 +123,7 @@ class CreateStarsInvoiceView(APIView):
                     OpenApiExample(
                         name="Пример успешного ответа",
                         value={
-                            "ok": True,
                             "invoice_link": "https://t.me/p2p/pay?start=abc123",
-                            "payload": {
-                                "type": "spin_game",
-                                "payload": {"user_id": 123456789}
-                            }
                         },
                     )
                 ]
