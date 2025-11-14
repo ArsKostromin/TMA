@@ -38,7 +38,6 @@ class UserBalanceSerializer(serializers.Serializer):
     avatar_url = serializers.SerializerMethodField()
 
     def get_avatar_url(self, obj):
-        """Возвращает аватарку пользователя или аватарку по умолчанию"""
         user = self.context['request'].user
         return user.get_avatar_url()
 
@@ -50,3 +49,9 @@ class CreateStarsInvoiceSerializer(serializers.Serializer):
         if value < 1:
             raise serializers.ValidationError("Минимальная ставка — 1 Star")
         return value
+
+
+class CreateStarsInvoiceResponseSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    invoice_link = serializers.CharField()
+    payload = serializers.JSONField()

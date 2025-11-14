@@ -11,10 +11,11 @@ from .serializers import (
     RefreshTokenRequestSerializer,
     RefreshTokenResponseSerializer,
     LogoutResponseSerializer,
-    TelegramAuthRequestSerializer, 
+    TelegramAuthRequestSerializer,
     TelegramAuthResponseSerializer,
     UserBalanceSerializer,
-    CreateStarsInvoiceSerializer
+    CreateStarsInvoiceSerializer,
+    CreateStarsInvoiceResponseSerializer
 )
 from .services.telegram_stars import TelegramStarsService
 from rest_framework.permissions import IsAuthenticated
@@ -98,6 +99,7 @@ class UserBalanceView(APIView):
 
 class CreateStarsInvoiceView(APIView):
     permission_classes = [IsAuthenticated]
+
     @extend_schema(
         summary="Создать Telegram Stars инвойс",
         description=(
@@ -116,6 +118,7 @@ class CreateStarsInvoiceView(APIView):
         responses={
             200: OpenApiResponse(
                 description="Успешный ответ",
+                response=CreateStarsInvoiceResponseSerializer,
                 examples=[
                     OpenApiExample(
                         name="Пример успешного ответа",
@@ -153,8 +156,6 @@ class CreateStarsInvoiceView(APIView):
         amount = serializer.validated_data["amount_stars"]
         user = request.user
 
-
-        # payload который улетит в вебхук Telegram
         payload = {
             "user_id": user.telegram_id
         }
@@ -175,7 +176,6 @@ class CreateStarsInvoiceView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
-
 
         return Response(
             {
