@@ -52,6 +52,4 @@ class CreateStarsInvoiceSerializer(serializers.Serializer):
 
 
 class CreateStarsInvoiceResponseSerializer(serializers.Serializer):
-    ok = serializers.BooleanField()
     invoice_link = serializers.CharField()
-    payload = serializers.JSONField()
