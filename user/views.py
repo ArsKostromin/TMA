@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
-from drf_spectacular.utils import extend_schema
+from rest_framework import serializers, status
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 from django.contrib.auth import get_user_model
 from .services.auth import AuthService
 from .services.telegram_auth import TelegramAuthService
@@ -13,8 +13,12 @@ from .serializers import (
     LogoutResponseSerializer,
     TelegramAuthRequestSerializer, 
     TelegramAuthResponseSerializer,
-    UserBalanceSerializer
+    UserBalanceSerializer,
+    CreateStarsInvoiceSerializer
 )
+from services.telegram_stars import TelegramStarsService
+from rest_framework.permissions import IsAuthenticated
+
 
 User = get_user_model()
 
@@ -90,3 +94,82 @@ class UserBalanceView(APIView):
             'gift_count': gift_count
         }, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class CreateStarsInvoiceView(APIView):
+    permission_classes = [IsAuthenticated]
+    @extend_schema(
+        summary="Создать Telegram Stars инвойс",
+        description=(
+            "Создаёт ссылку на оплату через Telegram Stars. "
+            "Пользователь берётся из токена авторизации. "
+            "Возвращает invoice_link, который Mini App должен открыть."
+        ),
+        request=CreateStarsInvoiceSerializer,
+        responses={
+            200: OpenApiResponse(
+                response=OpenApiExample(
+                    name="Успешный ответ",
+                    value={
+                        "ok": True,
+                        "invoice_link": "https://t.me/p2p/pay?start=abc123",
+                        "payload": {
+                            "type": "spin_game",
+                            "payload": {"user_id": 123456789}
+                        }
+                    }
+                )
+            ),
+            400: OpenApiResponse(
+                response=OpenApiExample(
+                    name="Ошибка Telegram API",
+                    value={
+                        "ok": False,
+                        "error": "Bad Request: Invalid price amount",
+                        "raw": {}
+                    }
+                )
+            ),
+        },
+        tags=["payments"],
+    )
+
+    def post(self, request, *args, **kwargs):
+        serializer = CreateStarsInvoiceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        amount = serializer.validated_data["amount_stars"]
+        user = request.user
+
+
+        # payload который улетит в вебхук Telegram
+        payload = {
+            "user_id": user.telegram_id
+        }
+
+        invoice = TelegramStarsService.create_invoice(
+            amount_stars=amount,
+            title="Участие в игре",
+            description=f"Ставка пользователя {user.telegram_id}",
+            payload=payload,
+        )
+
+        if not invoice.get("ok"):
+            return Response(
+                {
+                    "ok": False,
+                    "error": invoice.get("error"),
+                    "raw": invoice.get("raw"),
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+        return Response(
+            {
+                "ok": True,
+                "invoice_link": invoice["invoice_link"],
+                "payload": invoice["invoice_payload"],
+            },
+            status=status.HTTP_200_OK
+        )
