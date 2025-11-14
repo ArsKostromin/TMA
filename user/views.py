@@ -109,40 +109,43 @@ class CreateStarsInvoiceView(APIView):
         examples=[
             OpenApiExample(
                 name="Пример запроса",
-                value={
-                    "amount_stars": 150
-                },
+                value={"amount_stars": 150},
                 request_only=True,
             )
         ],
         responses={
             200: OpenApiResponse(
-                response=OpenApiExample(
-                    name="Успешный ответ",
-                    value={
-                        "ok": True,
-                        "invoice_link": "https://t.me/p2p/pay?start=abc123",
-                        "payload": {
-                            "type": "spin_game",
-                            "payload": {"user_id": 123456789}
-                        }
-                    }
-                )
+                description="Успешный ответ",
+                examples=[
+                    OpenApiExample(
+                        name="Пример успешного ответа",
+                        value={
+                            "ok": True,
+                            "invoice_link": "https://t.me/p2p/pay?start=abc123",
+                            "payload": {
+                                "type": "spin_game",
+                                "payload": {"user_id": 123456789}
+                            }
+                        },
+                    )
+                ]
             ),
             400: OpenApiResponse(
-                response=OpenApiExample(
-                    name="Ошибка Telegram API",
-                    value={
-                        "ok": False,
-                        "error": "Bad Request: Invalid price amount",
-                        "raw": {}
-                    }
-                )
+                description="Ошибка Telegram API",
+                examples=[
+                    OpenApiExample(
+                        name="Ошибка примера",
+                        value={
+                            "ok": False,
+                            "error": "Bad Request: Invalid price amount",
+                            "raw": {}
+                        }
+                    )
+                ]
             ),
         },
         tags=["payments"],
     )
-
     def post(self, request, *args, **kwargs):
         serializer = CreateStarsInvoiceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
