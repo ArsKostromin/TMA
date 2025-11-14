@@ -179,9 +179,7 @@ class CreateStarsInvoiceView(APIView):
 
         return Response(
             {
-                "ok": True,
                 "invoice_link": invoice["invoice_link"],
-                "payload": invoice["invoice_payload"],
             },
             status=status.HTTP_200_OK
         )
