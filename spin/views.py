@@ -23,7 +23,6 @@ from .api_examples import (
     SPIN_PLAY_RESPONSE_EXAMPLE
 )
 from spin.services.spin_service import SpinService
-from spin.services.telegram_stars import SocketNotifyService
 
 
 logger = logging.getLogger("games.webhook")
