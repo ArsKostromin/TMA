@@ -23,6 +23,7 @@ from .api_examples import (
     SPIN_PLAY_RESPONSE_EXAMPLE
 )
 from spin.services.spin_service import SpinService
+from django.db import transaction
 
 
 logger = logging.getLogger("games.webhook")
@@ -135,27 +136,32 @@ class SpinPlayView(APIView):
         try:
             from .services.spin_bet_service import SpinBetService
             from .utils.spin_response import format_spin_response
-            
-            # Валидируем ставку
+
+            # Валидация ставки (не изменяет баланс)
             SpinService.validate_bet(bet_stars, bet_ton)
-            
-            # Обрабатываем ставку через сервис
-            if bet_stars > 0:
-                # Ставка в звёздах - создаём инвойс
-                result = SpinBetService.create_bet_with_stars(user, bet_stars, bet_ton)
-            elif bet_ton > 0:
-                # Ставка только в TON - играем сразу
-                result = SpinBetService.create_bet_with_ton(user, bet_ton)
-            else:
-                return Response(
-                    {"error": "Нужна ставка в Stars или TON"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Форматируем ответ
+
+            # 💣 КРИТИЧЕСКОЕ: всё, что меняет баланс — в атомарном блоке
+            with transaction.atomic():
+                if bet_stars > 0:
+                    result = SpinBetService.create_bet_with_stars(
+                        user, bet_stars, bet_ton
+                    )
+                elif bet_ton > 0:
+                    result = SpinBetService.create_bet_with_ton(
+                        user, bet_ton
+                    )
+                else:
+                    return Response(
+                        {"error": "Нужна ставка в Stars или TON"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            # Формируем ответ
             response_data = format_spin_response(result)
-            
             return Response(response_data, status=status.HTTP_200_OK)
-            
+
         except ValidationError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            # Опционально — логирование
+            return Response({"error": "Internal error"}, status=500)esponse({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
