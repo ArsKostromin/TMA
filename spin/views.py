@@ -144,7 +144,7 @@ class SpinPlayView(APIView):
             with transaction.atomic():
                 if bet_stars > 0:
                     result = SpinBetService.create_bet_with_stars(
-                        user, bet_stars, bet_ton
+                        user, bet_stars
                     )
                 elif bet_ton > 0:
                     result = SpinBetService.create_bet_with_ton(
