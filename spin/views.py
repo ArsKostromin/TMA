@@ -134,29 +134,32 @@ class SpinPlayView(APIView):
         bet_ton = data.get("bet_ton", Decimal("0"))
 
         try:
-            from .services.spin_bet_service import SpinBetService
-            from .utils.spin_response import format_spin_response
-
-            # Валидация ставки (не изменяет баланс)
+            # валидируем ставку
             SpinService.validate_bet(bet_stars, bet_ton)
 
-            # 💣 КРИТИЧЕСКОЕ: всё, что меняет баланс — в атомарном блоке
+            # всё, что меняет баланс — в транзакции
             with transaction.atomic():
-                if bet_stars > 0:
-                    result = SpinBetService.create_bet_with_stars(
-                        user, bet_stars
-                    )
-                elif bet_ton > 0:
-                    result = SpinBetService.create_bet_with_ton(
-                        user, bet_ton
-                    )
-                else:
-                    return Response(
-                        {"error": "Нужна ставка в Stars или TON"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+                # вызываем сразу play()
+                game, sector = SpinService.play(
+                    user,
+                    bet_stars=bet_stars,
+                    bet_ton=bet_ton
+                )
 
-            # Формируем ответ
+                result = {
+                    "game_id": game.id,
+                    "payment_required": False,
+                    "payment_link": None,
+                    "bet_stars": bet_stars,
+                    "bet_ton": str(bet_ton),
+                    "result_sector": sector.index,
+                    "gift_won": sector.gift,
+                    "balances": {
+                        "stars": user.balance_stars,
+                        "ton": str(user.balance_ton),
+                    }
+                }
+
             response_data = format_spin_response(result)
             return Response(response_data, status=status.HTTP_200_OK)
 
