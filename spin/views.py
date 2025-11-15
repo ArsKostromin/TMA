@@ -163,5 +163,5 @@ class SpinPlayView(APIView):
         except ValidationError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            # Опционально — логирование
-            return Response({"error": "Internal error"}, status=500)esponse({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            logger.exception("Spin play error")
+            return Response({"error": "Internal error"}, status=500)
