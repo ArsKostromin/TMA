@@ -134,17 +134,19 @@ class SpinPlayView(APIView):
         bet_ton = data.get("bet_ton", Decimal("0"))
 
         try:
-            # валидируем ставку
             SpinService.validate_bet(bet_stars, bet_ton)
 
-            # всё, что меняет баланс — в транзакции
             with transaction.atomic():
-                # вызываем сразу play()
-                game, sector = SpinService.play(
-                    user,
-                    bet_stars=bet_stars,
-                    bet_ton=bet_ton
-                )
+                # ловим недостаточно баланса
+                try:
+                    game, sector = SpinService.play(
+                        user,
+                        bet_stars=bet_stars,
+                        bet_ton=bet_ton
+                    )
+                except ValueError as e:
+                    # превращаем в красивую ошибку 400
+                    return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
                 result = {
                     "game_id": game.id,
