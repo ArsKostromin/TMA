@@ -2,7 +2,7 @@ import logging
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from asgiref.sync import sync_to_async
-from .telegram_stars import TelegramStarsService
+# from .telegram_stars import TelegramStarsService
 from spin.models import SpinGame
 from .spin_service import SpinService
 import time
@@ -17,40 +17,40 @@ class SpinBetService:
         if not user.telegram_id:
             raise ValidationError("У аккаунта не указан Telegram ID (telegram_id)")
 
-    @staticmethod
-    async def create_invoice_for_stars(user, bet_stars: int, channel_name: str) -> dict:
-        """
-        Создаёт инвойс для оплаты звёздами. Игра ещё не создаётся.
-        """
-        # Проверка пользователя
-        await SpinBetService.validate_user(user)
+    # @staticmethod
+    # async def create_invoice_for_stars(user, bet_stars: int, channel_name: str) -> dict:
+    #     """
+    #     Создаёт инвойс для оплаты звёздами. Игра ещё не создаётся.
+    #     """
+    #     # Проверка пользователя
+    #     await SpinBetService.validate_user(user)
 
-        # Генерируем короткий уникальный ID заказа для payload (Telegram требует строку <= 32 байт)
-        payload = channel_name  # строго строка, короткая и уникальная
+    #     # Генерируем короткий уникальный ID заказа для payload (Telegram требует строку <= 32 байт)
+    #     payload = channel_name  # строго строка, короткая и уникальная
 
-        # Заголовки инвойса
-        title = "Ставка в рулетку"
-        description = f"Оплата участия в спин-игре. Ставка: {bet_stars}⭐"
+    #     # Заголовки инвойса
+    #     title = "Ставка в рулетку"
+    #     description = f"Оплата участия в спин-игре. Ставка: {bet_stars}⭐"
 
-        logger.warning("вызвался create_invoice_for_stars!Й!!")
+    #     logger.warning("вызвался create_invoice_for_stars!Й!!")
 
-        # Создаём инвойс через TelegramStarsService (sync -> async)
-        invoice_result = await sync_to_async(TelegramStarsService.create_invoice)(
-            amount_stars=bet_stars,
-            title=title,
-            description=description,
-            payload=payload 
-        )
+    #     # Создаём инвойс через TelegramStarsService (sync -> async)
+    #     invoice_result = await sync_to_async(TelegramStarsService.create_invoice)(
+    #         amount_stars=bet_stars,
+    #         title=title,
+    #         description=description,
+    #         payload=payload 
+    #     )
 
-        if not invoice_result.get("ok"):
-            raise ValidationError(f"Не удалось создать инвойс: {invoice_result.get('error')}")
+    #     if not invoice_result.get("ok"):
+    #         raise ValidationError(f"Не удалось создать инвойс: {invoice_result.get('error')}")
 
-        return {
-            "payment_required": True,
-            "payment_link": invoice_result.get("invoice_link"),
-            "bet_stars": bet_stars,
-            "message": "Оплатите инвойс для запуска игры",
-        }
+    #     return {
+    #         "payment_required": True,
+    #         "payment_link": invoice_result.get("invoice_link"),
+    #         "bet_stars": bet_stars,
+    #         "message": "Оплатите инвойс для запуска игры",
+    #     }
 
     @staticmethod
     async def create_game_after_payment(user, bet_stars: int, bet_ton: Decimal) -> dict:
