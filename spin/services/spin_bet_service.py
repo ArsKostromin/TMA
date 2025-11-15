@@ -104,3 +104,34 @@ class SpinBetService:
                 "ton": str(user.balance_ton),
             }
         }
+
+
+    @staticmethod
+    async def create_bet_with_stars(user, bet_stars: int) -> dict:
+        """
+        Ставка в TON остаётся как раньше — списываем и сразу запускаем игру.
+        """
+        if user.balance_stars < bet_stars:
+            raise ValidationError("Недостаточно Stars на балансе")
+
+        await sync_to_async(user.subtract_stars)(bet_stars)
+
+        @sync_to_async
+        def play_game():
+            return SpinService.play(user, bet_stars=bet_stars, bet_ton=0)
+
+        game, result = await play_game()
+
+        return {
+            "game_id": game.id,
+            "payment_required": False,
+            "payment_link": None,
+            "bet_stars": bet_stars,
+            "bet_ton": "0",
+            "result_sector": result.index,
+            "gift_won": result.gift,
+            "balances": {
+                "stars": user.balance_stars,
+                "ton": "0.00",
+            }
+        }
