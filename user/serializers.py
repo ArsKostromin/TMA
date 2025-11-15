@@ -53,3 +53,23 @@ class CreateStarsInvoiceSerializer(serializers.Serializer):
 
 class CreateStarsInvoiceResponseSerializer(serializers.Serializer):
     invoice_link = serializers.CharField()
+
+
+class SuccessfulPaymentSerializer(serializers.Serializer):
+    currency = serializers.CharField()
+    total_amount = serializers.IntegerField()
+    invoice_payload = serializers.CharField()
+    telegram_payment_charge_id = serializers.CharField(required=False)
+    provider_payment_charge_id = serializers.CharField(required=False)
+
+
+class TelegramMessageSerializer(serializers.Serializer):
+    message_id = serializers.IntegerField(required=False)
+    date = serializers.IntegerField(required=False)
+    successful_payment = SuccessfulPaymentSerializer(required=False)
+    from_user = serializers.DictField(source="from", required=False)
+
+
+class TelegramWebhookSerializer(serializers.Serializer):
+    update_id = serializers.IntegerField()
+    message = TelegramMessageSerializer(required=False)

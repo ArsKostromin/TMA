@@ -15,7 +15,8 @@ from .serializers import (
     TelegramAuthResponseSerializer,
     UserBalanceSerializer,
     CreateStarsInvoiceSerializer,
-    CreateStarsInvoiceResponseSerializer
+    CreateStarsInvoiceResponseSerializer,
+    TelegramWebhookSerializer
 )
 from .services.telegram_stars import TelegramStarsService
 from rest_framework.permissions import IsAuthenticated
@@ -178,3 +179,57 @@ class CreateStarsInvoiceView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class TelegramStarsWebhookView(APIView):
+    authentication_classes = []   # Telegram не авторизуется
+    permission_classes = []       # Вебхук публичный
+    throttle_classes = []         # Не душим его
+
+    def post(self, request, *args, **kwargs):
+        serializer = TelegramWebhookSerializer(data=request.data)
+        serializer.is_valid(raise_exception=False)
+
+        data = serializer.validated_data
+        logger.info(f"📩 Telegram webhook: {data}")
+
+        message = data.get("message")
+        if not message:
+            return Response({"ok": True})
+
+        payment = message.get("successful_payment")
+        if not payment:
+            return Response({"ok": True})
+
+        # извлечение данных 
+        try:
+            raw_from = message["from_user"]
+            telegram_id = raw_from.get("id")
+        except Exception:
+            telegram_id = None
+
+        if not telegram_id:
+            logger.error("❌ Telegram ID отсутствует")
+            return Response({"ok": True})
+
+        total_amount = payment["total_amount"]
+        payload_raw = payment["invoice_payload"]
+
+        try:
+            payload = json.loads(payload_raw)
+        except json.JSONDecodeError:
+            payload = {}
+
+        # ищем юзера
+        try:
+            user = User.objects.get(telegram_id=telegram_id)
+        except User.DoesNotExist:
+            logger.error(f"Юзер {telegram_id} не найден")
+            return Response({"ok": True})
+
+        # пополнение
+        user.add_stars(total_amount)
+        logger.info(f"✨ Пополнение Stars: user={telegram_id} +{total_amount}")
+
+        return Response({"ok": True}, status=status.HTTP_200_OK)

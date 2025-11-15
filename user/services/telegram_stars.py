@@ -92,34 +92,3 @@ class TelegramStarsService:
         except requests.RequestException as e:
             logger.exception("❌ Ошибка при запросе к Telegram API")
             return {"ok": False, "error": str(e)}
-
-
-    # ========================
-    # 🔹 ПРОВЕРКА ВЕБХУКА
-    # ========================
-class SocketNotifyService:
-    """
-    Сервис для уведомления WebSocket-клиентов.
-    """
-
-    @staticmethod
-    def send_to_socket(socket_id: str, event_type: str, data: dict):
-        """
-        Отправляет сообщение в сокет-группу.
-        """
-        if not socket_id:
-            logger.warning("Попытка отправить уведомление без socket_id")
-            return False
-
-        channel_layer = get_channel_layer()
-
-        async_to_sync(channel_layer.group_send)(
-            f"socket_{socket_id}",
-            {
-                "type": event_type,
-                "data": data,
-            },
-        )
-
-        logger.info(f"Сообщение отправлено в socket_{socket_id}: {event_type}")
-        return True
