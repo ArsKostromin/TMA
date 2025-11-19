@@ -7,6 +7,7 @@ from .serializers import (
     SpinPlayRequestSerializer
 )
 
+
 # ===============================
 # 1️⃣ Spin Wheel Schema
 # ===============================
@@ -79,7 +80,7 @@ def spin_history_schema(view_class):
                     "price_ton": "25.00",
                     "rarity": "epic"
                 },
-                "result_sector": 3,
+                "result_sector": "3",
                 "played_at": "2025-01-28T10:00:00Z"
             }
         ]
@@ -90,7 +91,7 @@ def spin_history_schema(view_class):
         description="Возвращает историю всех игр в спин для текущего пользователя",
         responses={
             200: OpenApiResponse(
-                response=SpinGameHistorySerializer,
+                response=SpinGameHistorySerializer(many=True),
                 description="Успешный ответ",
                 examples=[OpenApiExample(name="Пример ответа", value=example_response)]
             )
@@ -111,10 +112,20 @@ def spin_play_schema(view_class):
     response_example = {
         "game_id": 8,
         "bet_stars": 400,
-        "bet_ton": "0",
+        "bet_ton": "0.000000",
+        "result_sector": "2",
+        "gift_won": None,
+        "balances": {
+            "stars": "600",
+            "ton": "10.500000"
+        },
         "payment_required": True,
         "payment_link": "https://t.me/$1QwvxHKimEhjEAAAwGyRljZRj1Y",
         "message": "Оплатите инвойс для запуска игры"
+    }
+
+    error_example = {
+        "error": "Нужна ставка в Stars или TON"
     }
 
     return extend_schema(
@@ -125,11 +136,11 @@ def spin_play_schema(view_class):
             200: OpenApiResponse(
                 response=SpinPlayResponseSerializer,
                 description="Успешный ответ",
-                examples=[OpenApiExample(name="Пример ответа", value=response_example)]
+                examples=[OpenApiExample(name="Пример успешного ответа", value=response_example)]
             ),
             400: OpenApiResponse(
                 description="Ошибка валидации",
-                examples=[OpenApiExample(name="Пример ошибки", value={"error": "Нужна ставка в Stars или TON"})]
+                examples=[OpenApiExample(name="Пример ошибки", value=error_example)]
             )
         },
         tags=["Games"]
