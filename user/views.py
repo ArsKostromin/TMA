@@ -16,7 +16,7 @@ from .serializers import (
     UserBalanceSerializer,
     CreateStarsInvoiceSerializer
 )
-from services.telegram_stars import TelegramStarsService
+from .services.telegram_stars import TelegramStarsService
 from rest_framework.permissions import IsAuthenticated
 
 
