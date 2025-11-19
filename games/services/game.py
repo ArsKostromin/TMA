@@ -1,12 +1,11 @@
-import redis
 import random
 import logging
 from decimal import Decimal
 from django.db import transaction
-from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
+
 
 r = settings.REDIS_CLIENT
 logger = logging.getLogger('games.services.game')

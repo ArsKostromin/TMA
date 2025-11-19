@@ -8,7 +8,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListAPIView
-from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 
 from .models import SpinGame, SpinWheelSector
 from .serializers import (
@@ -17,14 +16,13 @@ from .serializers import (
     SpinPlayRequestSerializer,
     SpinPlayResponseSerializer,
 )
-from .api_examples import (
-    SPIN_WHEEL_EXAMPLE,
-    SPIN_GAME_HISTORY_EXAMPLE,
-    SPIN_PLAY_RESPONSE_EXAMPLE
-)
 from spin.services.spin_service import SpinService
-from spin.services.telegram_stars import SocketNotifyService
 
+from .api_examples import (
+    spin_wheel_schema,
+    spin_history_schema,
+    spin_play_schema,
+)
 
 logger = logging.getLogger("games.webhook")
 
@@ -34,65 +32,24 @@ class TelegramStarsWebhookView(APIView):
     Принимает вебхук от Telegram Stars после успешной оплаты.
     Извлекает payload (channel_name) и уведомляет WebSocket.
     """
-
     def post(self, request, *args, **kwargs):
         data = request.data
         logger.info(f"🌠 Webhook received: {data}")
+        return Response({"ok": True})
 
 
-
+@spin_wheel_schema
 class SpinWheelView(APIView):
-    """
-    Получение всех секторов колеса для спина
-    """
-    
-    @extend_schema(
-        summary="Сектора колеса спина",
-        description="Возвращает все сектора колеса спина с подарками и вероятностями",
-        responses={
-            200: OpenApiResponse(
-                response=SpinWheelSectorSerializer(many=True),
-                description="Успешный ответ",
-                examples=[
-                    OpenApiExample(
-                        name="Пример ответа",
-                        value=SPIN_WHEEL_EXAMPLE
-                    )
-                ],
-            ),
-        },
-        tags=["spin"],
-    )
     def get(self, request):
-        # Берём все сектора, сортируя по индексу
         sectors = SpinWheelSector.objects.select_related("gift").all().order_by("index")
         serializer = SpinWheelSectorSerializer(sectors, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+@spin_history_schema
 class SpinGameHistoryView(ListAPIView):
     serializer_class = SpinGameHistorySerializer
     permission_classes = [IsAuthenticated]
-    
-    @extend_schema(
-        summary="История игр в спин",
-        description="Возвращает историю всех игр в спин для текущего пользователя",
-        responses={
-            200: OpenApiResponse(
-                response=SpinGameHistorySerializer,
-                description="Успешный ответ",
-                examples=[
-                    OpenApiExample(
-                        name="Пример ответа",
-                        value=SPIN_GAME_HISTORY_EXAMPLE
-                    )
-                ],
-            ),
-        },
-        tags=["spin"],
-    )
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
         return (
@@ -102,28 +59,10 @@ class SpinGameHistoryView(ListAPIView):
         )
 
 
+@spin_play_schema
 class SpinPlayView(APIView):
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
-        summary="Игра в спин",
-        description="Запускает игру в спин с указанными ставками в Stars и TON",
-        request=SpinPlayRequestSerializer,
-        responses={
-            200: OpenApiResponse(
-                response=SpinPlayResponseSerializer,
-                description="Успешный ответ",
-                examples=[
-                    OpenApiExample(
-                        name="Пример ответа",
-                        value=SPIN_PLAY_RESPONSE_EXAMPLE
-                    )
-                ],
-            ),
-            400: OpenApiResponse(description="Ошибка валидации"),
-        },
-        tags=["Games"],
-    )
     def post(self, request):
         serializer = SpinPlayRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -136,27 +75,23 @@ class SpinPlayView(APIView):
         try:
             from .services.spin_bet_service import SpinBetService
             from .utils.spin_response import format_spin_response
-            
+
             # Валидируем ставку
             SpinService.validate_bet(bet_stars, bet_ton)
-            
-            # Обрабатываем ставку через сервис
+
+            # Обрабатываем ставку
             if bet_stars > 0:
-                # Ставка в звёздах - создаём инвойс
                 result = SpinBetService.create_bet_with_stars(user, bet_stars, bet_ton)
             elif bet_ton > 0:
-                # Ставка только в TON - играем сразу
                 result = SpinBetService.create_bet_with_ton(user, bet_ton)
             else:
                 return Response(
                     {"error": "Нужна ставка в Stars или TON"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
-            # Форматируем ответ
+
             response_data = format_spin_response(result)
-            
             return Response(response_data, status=status.HTTP_200_OK)
-            
+
         except ValidationError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
