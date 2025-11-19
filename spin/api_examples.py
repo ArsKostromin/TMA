@@ -1,78 +1,136 @@
-from drf_spectacular.utils import (
-    extend_schema,
-    OpenApiResponse,
-    OpenApiExample
-)
-from ..serializers import (
+# spin/api_examples.py
+from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse
+from .serializers import (
     SpinWheelSectorSerializer,
     SpinGameHistorySerializer,
-    SpinPlayRequestSerializer,
     SpinPlayResponseSerializer,
-)
-from ..api_examples import (
-    SPIN_WHEEL_EXAMPLE,
-    SPIN_GAME_HISTORY_EXAMPLE,
-    SPIN_PLAY_RESPONSE_EXAMPLE
+    SpinPlayRequestSerializer
 )
 
+# ===============================
+# 1️⃣ Spin Wheel Schema
+# ===============================
+def spin_wheel_schema(view_class):
+    examples = [
+        OpenApiExample(
+            name="Пример ответа",
+            value=[
+                {
+                    "index": 0,
+                    "probability": "15.0",
+                    "gift": {
+                        "id": 123,
+                        "name": "Common Coin",
+                        "description": "Обычная монета",
+                        "image_url": "https://example.com/coin.png",
+                        "price_ton": "1.00",
+                        "rarity": "common"
+                    }
+                },
+                {
+                    "index": 1,
+                    "probability": "5.0",
+                    "gift": {
+                        "id": 456,
+                        "name": "Epic Dragon",
+                        "description": "Эпический дракон",
+                        "image_url": "https://example.com/dragon.png",
+                        "price_ton": "25.00",
+                        "rarity": "epic"
+                    }
+                }
+            ]
+        )
+    ]
 
-# SpinWheelView
-spin_wheel_schema = extend_schema(
-    summary="Сектора колеса спина",
-    description="Возвращает все сектора колеса спина с подарками и вероятностями",
-    responses={
-        200: OpenApiResponse(
-            response=SpinWheelSectorSerializer(many=True),
-            description="Успешный ответ",
-            examples=[
-                OpenApiExample(
-                    name="Пример ответа",
-                    value=SPIN_WHEEL_EXAMPLE
-                )
-            ],
-        ),
-    },
-    tags=["spin"],
-)
+    return extend_schema(
+        summary="Сектора колеса спина",
+        description="Возвращает все сектора колеса спина с подарками и вероятностями",
+        responses={
+            200: OpenApiResponse(
+                response=SpinWheelSectorSerializer(many=True),
+                description="Успешный ответ",
+                examples=examples
+            )
+        },
+        tags=["spin"]
+    )(view_class)
 
 
-# SpinGameHistoryView
-spin_history_schema = extend_schema(
-    summary="История игр в спин",
-    description="Возвращает историю всех игр в спин для текущего пользователя",
-    responses={
-        200: OpenApiResponse(
-            response=SpinGameHistorySerializer,
-            description="Успешный ответ",
-            examples=[
-                OpenApiExample(
-                    name="Пример ответа",
-                    value=SPIN_GAME_HISTORY_EXAMPLE
-                )
-            ],
-        ),
-    },
-    tags=["spin"],
-)
+# ===============================
+# 2️⃣ Spin History Schema
+# ===============================
+def spin_history_schema(view_class):
+    example_response = {
+        "count": 2,
+        "next": None,
+        "previous": None,
+        "results": [
+            {
+                "id": 15,
+                "bet_stars": 100,
+                "bet_ton": "5.00",
+                "win_amount": "25.00",
+                "gift_won": {
+                    "id": 456,
+                    "name": "Epic Dragon",
+                    "description": "Эпический дракон",
+                    "image_url": "https://example.com/dragon.png",
+                    "price_ton": "25.00",
+                    "rarity": "epic"
+                },
+                "result_sector": 3,
+                "played_at": "2025-01-28T10:00:00Z"
+            }
+        ]
+    }
+
+    return extend_schema(
+        summary="История игр в спин",
+        description="Возвращает историю всех игр в спин для текущего пользователя",
+        responses={
+            200: OpenApiResponse(
+                response=SpinGameHistorySerializer,
+                description="Успешный ответ",
+                examples=[OpenApiExample(name="Пример ответа", value=example_response)]
+            )
+        },
+        tags=["spin"]
+    )(view_class)
 
 
-# SpinPlayView
-spin_play_schema = extend_schema(
-    summary="Игра в спин",
-    description="Запускает игру в спин с указанными ставками в Stars и TON",
-    request=SpinPlayRequestSerializer,
-    responses={
-        200: OpenApiResponse(
-            response=SpinPlayResponseSerializer,
-            description="Успешный ответ",
-            examples=[
-                OpenApiExample(
-                    name="Пример ответа",
-                    value=SPIN_PLAY_RESPONSE_EXAMPLE
-                )
-            ],
-        ),
-        400: OpenApiResponse(description="Ошибка валидации"),
-    },
-    tags=["Games"],
-)
+# ===============================
+# 3️⃣ Spin Play Schema
+# ===============================
+def spin_play_schema(view_class):
+    request_example = {
+        "bet_stars": 100,
+        "bet_ton": "5.00"
+    }
+
+    response_example = {
+        "game_id": 8,
+        "bet_stars": 400,
+        "bet_ton": "0",
+        "payment_required": True,
+        "payment_link": "https://t.me/$1QwvxHKimEhjEAAAwGyRljZRj1Y",
+        "message": "Оплатите инвойс для запуска игры"
+    }
+
+    return extend_schema(
+        summary="Игра в спин",
+        description="Запускает игру в спин с указанными ставками в Stars и TON",
+        request=SpinPlayRequestSerializer,
+        responses={
+            200: OpenApiResponse(
+                response=SpinPlayResponseSerializer,
+                description="Успешный ответ",
+                examples=[OpenApiExample(name="Пример ответа", value=response_example)]
+            ),
+            400: OpenApiResponse(
+                description="Ошибка валидации",
+                examples=[OpenApiExample(name="Пример ошибки", value={"error": "Нужна ставка в Stars или TON"})]
+            )
+        },
+        tags=["Games"]
+    )(view_class)
