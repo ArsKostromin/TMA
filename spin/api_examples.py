@@ -1,5 +1,3 @@
-# api_docs/spin_docs.py
-
 from drf_spectacular.utils import (
     extend_schema,
     OpenApiResponse,
@@ -18,7 +16,7 @@ from ..api_examples import (
 )
 
 
-# ---- SpinWheelView ----
+# SpinWheelView
 spin_wheel_schema = extend_schema(
     summary="Сектора колеса спина",
     description="Возвращает все сектора колеса спина с подарками и вероятностями",
@@ -38,7 +36,7 @@ spin_wheel_schema = extend_schema(
 )
 
 
-# ---- SpinGameHistoryView ----
+# SpinGameHistoryView
 spin_history_schema = extend_schema(
     summary="История игр в спин",
     description="Возвращает историю всех игр в спин для текущего пользователя",
@@ -58,7 +56,7 @@ spin_history_schema = extend_schema(
 )
 
 
-# ---- SpinPlayView ----
+# SpinPlayView
 spin_play_schema = extend_schema(
     summary="Игра в спин",
     description="Запускает игру в спин с указанными ставками в Stars и TON",

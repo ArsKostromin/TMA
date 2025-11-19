@@ -18,6 +18,7 @@ def _clamp(x, lo=0.0, hi=1.0):
 class SpinService:
     @staticmethod
     def validate_bet(bet_stars, bet_ton):
+        #валидация управляется из таблицы config
         if bet_stars:
             min_stars = Config.get(constants.ROLLS_MIN_STARS, 400, int)
             max_stars = Config.get(constants.ROLLS_MAX_STARS, 50000, int)
@@ -35,6 +36,7 @@ class SpinService:
 
     @staticmethod
     def _bet_ratio(bet_stars: int, bet_ton: Decimal) -> float:
+        #расчет отношения ставки в Stars к ставке в TON
         min_stars = Config.get(constants.ROLLS_MIN_STARS, 400, int)
         max_stars = Config.get(constants.ROLLS_MAX_STARS, 50000, int)
         min_ton = Config.get(constants.ROLLS_MIN_TON, Decimal("1.5"), Decimal)
@@ -52,7 +54,7 @@ class SpinService:
 
     @staticmethod
     def _weighted_probabilities(sectors, r: float):
-        """Весовые коэффициенты с учётом ставки."""
+        #расчет весовых коэффициентов с учетом ставки
         alpha = float(Config.get(constants.ROLLS_WEIGHT_ALPHA, Decimal("0.5"), Decimal))
         gamma = float(Config.get(constants.ROLLS_WEIGHT_GAMMA, Decimal("0.5"), Decimal))
         boost = 1.0 + max(0.0, alpha) * (r ** max(1e-6, gamma))
@@ -127,6 +129,7 @@ class SpinService:
 
     @staticmethod
     def _redistribute_probabilities(removed_sector):
+        #перераспределение вероятности при удалении сектора
         """Если подарок закончился — сектор полностью удаляется, 
         а его вероятность перераспределяется на сектор с макс probability."""
         sectors = list(SpinWheelSector.objects.all())

@@ -18,11 +18,15 @@ from .serializers import (
 )
 from spin.services.spin_service import SpinService
 
+
 from .api_examples import (
     spin_wheel_schema,
     spin_history_schema,
     spin_play_schema,
 )
+from .services.spin_bet_service import SpinBetService
+from .utils.spin_response import format_spin_response
+
 
 logger = logging.getLogger("games.webhook")
 
@@ -34,7 +38,7 @@ class TelegramStarsWebhookView(APIView):
     """
     def post(self, request, *args, **kwargs):
         data = request.data
-        logger.info(f"🌠 Webhook received: {data}")
+        logger.info(f"Webhook received: {data}")
         return Response({"ok": True})
 
 
@@ -73,9 +77,6 @@ class SpinPlayView(APIView):
         bet_ton = data.get("bet_ton", Decimal("0"))
 
         try:
-            from .services.spin_bet_service import SpinBetService
-            from .utils.spin_response import format_spin_response
-
             # Валидируем ставку
             SpinService.validate_bet(bet_stars, bet_ton)
 
