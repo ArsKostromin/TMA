@@ -2,7 +2,7 @@ import logging
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from asgiref.sync import sync_to_async
-from user.telegram_stars import TelegramStarsService
+from user.services.telegram_stars import TelegramStarsService
 from spin.models import SpinGame
 from .spin_service import SpinService
 import time
