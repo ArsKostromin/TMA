@@ -99,8 +99,6 @@ SPIN_PLAY_RESPONSE_EXAMPLE = {
     "game_id": 8,
     "bet_stars": 400,
     "bet_ton": "0",
-    "payment_required": True,
-    "payment_link": "https://t.me/$1QwvxHKimEhjEAAAwGyRljZRj1Y",
     "message": "Оплатите инвойс для запуска игры"
 }
 

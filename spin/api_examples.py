@@ -119,8 +119,6 @@ def spin_play_schema(view_class):
             "stars": "600",
             "ton": "10.500000"
         },
-        "payment_required": True,
-        "payment_link": "https://t.me/$1QwvxHKimEhjEAAAwGyRljZRj1Y",
         "message": "Оплатите инвойс для запуска игры"
     }
 

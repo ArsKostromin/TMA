@@ -28,8 +28,6 @@ class SpinBetService:
 
         return {
             "game_id": game.id,
-            "payment_required": False,
-            "payment_link": None,
             "bet_stars": 0,
             "bet_ton": str(bet_ton),
             "result_sector": result.index,
