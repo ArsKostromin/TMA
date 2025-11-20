@@ -82,7 +82,7 @@ class SpinPlayView(APIView):
 
             # Обрабатываем ставку
             if bet_stars > 0:
-                result = SpinBetService.create_bet_with_stars(user, bet_stars, bet_ton)
+                result = SpinBetService.create_bet_with_stars(user, bet_stars)
             elif bet_ton > 0:
                 result = SpinBetService.create_bet_with_ton(user, bet_ton)
             else:
