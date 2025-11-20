@@ -295,13 +295,22 @@ class GameService:
                     "image_url": (
                         f"https://nft.fragment.com/gift/{gift.symbol}.medium.jpg"
                         if gift.symbol else gift.image_url
-                    ),                    "price_ton": str(gift.price_ton),
+                    ),
+                    "price_ton": str(gift.price_ton),
                     "backdrop": gift.backdrop,
                     "symbol": gift.symbol,
+                    "model_name": gift.model_name,
+                    "pattern_name": gift.pattern_name,
+                    "model_rarity_permille": gift.model_rarity_permille,
+                    "pattern_rarity_permille": gift.pattern_rarity_permille,
+                    "backdrop_rarity_permille": gift.backdrop_rarity_permille,
+                    "model_original_details": gift.model_original_details,
+                    "pattern_original_details": gift.pattern_original_details,
+                    "backdrop_original_details": gift.backdrop_original_details,
+                    "rarity_level": gift.rarity_level,
                 }
                 for gift in winner.gifts.all()
             ],
             "win_amount_ton": f"{(total_equiv_decimal * (1 - game.commission_percent / Decimal('100'))):.2f}",
             "winner_chance_percent": str(winner.chance_percent) if winner.chance_percent else "0",
         }
-        
