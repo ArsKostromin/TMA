@@ -105,21 +105,26 @@ def spin_history_schema(view_class):
 # ===============================
 def spin_play_schema(view_class):
     request_example = {
-        "bet_stars": 100,
-        "bet_ton": "5.00"
+        "bet_stars": 400,
+        "bet_ton": "0"
     }
 
     response_example = {
-        "game_id": 8,
+        "game_id": 315,
         "bet_stars": 400,
-        "bet_ton": "0.000000",
-        "result_sector": "2",
-        "gift_won": None,
-        "balances": {
-            "stars": "600",
-            "ton": "10.500000"
+        "bet_ton": "0",
+        "result_sector": 2,
+        "gift_won": {
+            "id": 64,
+            "name": "Test45",
+            "image_url": "",
+            "price_ton": "3.00",
+            "rarity": "45"
         },
-        "message": "Оплатите инвойс для запуска игры"
+        "balances": {
+            "stars": 26400,
+            "ton": "29985.000000"
+        }
     }
 
     error_example = {
@@ -128,17 +133,23 @@ def spin_play_schema(view_class):
 
     return extend_schema(
         summary="Игра в спин",
-        description="Запускает игру в спин с указанными ставками в Stars и TON",
+        description="Запускает игру в спин с указанными ставками в Stars или TON",
         request=SpinPlayRequestSerializer,
         responses={
             200: OpenApiResponse(
                 response=SpinPlayResponseSerializer,
                 description="Успешный ответ",
-                examples=[OpenApiExample(name="Пример успешного ответа", value=response_example)]
+                examples=[OpenApiExample(
+                    name="Пример успешного ответа",
+                    value=response_example
+                )]
             ),
             400: OpenApiResponse(
                 description="Ошибка валидации",
-                examples=[OpenApiExample(name="Пример ошибки", value=error_example)]
+                examples=[OpenApiExample(
+                    name="Пример ошибки",
+                    value=error_example
+                )]
             )
         },
         tags=["Games"]
