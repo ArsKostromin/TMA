@@ -11,7 +11,7 @@ import time
 logger = logging.getLogger(__name__)
 
 class SpinBetService:
-    
+
     @staticmethod
     def create_bet_with_ton(user, bet_ton: Decimal) -> dict:
         """
@@ -56,8 +56,6 @@ class SpinBetService:
 
         return {
             "game_id": game.id,
-            "payment_required": False,
-            "payment_link": None,
             "bet_stars": bet_stars,
             "bet_ton": 0,
             "result_sector": result.index,
