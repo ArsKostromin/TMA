@@ -18,41 +18,6 @@ class SpinBetService:
             raise ValidationError("У аккаунта не указан Telegram ID (telegram_id)")
 
     @staticmethod
-    async def create_invoice_for_stars(user, bet_stars: int, channel_name: str) -> dict:
-        """
-        Создаёт инвойс для оплаты звёздами. Игра ещё не создаётся.
-        """
-        # Проверка пользователя
-        await SpinBetService.validate_user(user)
-
-        # Генерируем короткий уникальный ID заказа для payload (Telegram требует строку <= 32 байт)
-        payload = channel_name  # строго строка, короткая и уникальная
-
-        # Заголовки инвойса
-        title = "Ставка в рулетку"
-        description = f"Оплата участия в спин-игре. Ставка: {bet_stars}⭐"
-
-        logger.warning("вызвался create_invoice_for_stars!Й!!")
-
-        # Создаём инвойс через TelegramStarsService (sync -> async)
-        invoice_result = await sync_to_async(TelegramStarsService.create_invoice)(
-            amount_stars=bet_stars,
-            title=title,
-            description=description,
-            payload=payload 
-        )
-
-        if not invoice_result.get("ok"):
-            raise ValidationError(f"Не удалось создать инвойс: {invoice_result.get('error')}")
-
-        return {
-            "payment_required": True,
-            "payment_link": invoice_result.get("invoice_link"),
-            "bet_stars": bet_stars,
-            "message": "Оплатите инвойс для запуска игры",
-        }
-
-    @staticmethod
     async def create_game_after_payment(user, bet_stars: int, bet_ton: Decimal) -> dict:
         """
         Создаёт игру **после успешной оплаты**.
@@ -97,6 +62,35 @@ class SpinBetService:
             "payment_link": None,
             "bet_stars": 0,
             "bet_ton": str(bet_ton),
+            "result_sector": result.index,
+            "gift_won": result.gift,
+            "balances": {
+                "stars": user.balance_stars,
+                "ton": str(user.balance_ton),
+            }
+        }
+
+    @staticmethod
+    async def create_bet_with_stars(user, bet_stars: int) -> dict:
+        """
+        Ставка в stars остаётся как раньше — списываем и сразу запускаем игру.
+        """
+        if user.balance_stars < bet_stars:
+            raise ValidationError("Недостаточно stars на балансе")
+
+        await sync_to_async(user.subtract_stars)(bet_stars)
+
+        @sync_to_async
+        def play_game():
+            return SpinService.play(user, bet_stars=bet_stars, bet_ton=0)
+
+        game, result = await play_game()
+
+        return {
+            "game_id": game.id,
+            "payment_required": False,
+            "bet_stars": str(bet_stars),
+            "bet_ton": 0,
             "result_sector": result.index,
             "gift_won": result.gift,
             "balances": {
