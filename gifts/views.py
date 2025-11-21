@@ -141,7 +141,7 @@ class TelegramPaymentWebhook(APIView):
 
                 # Телеге говорим «yes, всё ок, можно платить»
                 requests.post(
-                    f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/answerPreCheckoutQuery",
+                    f"https://api.telegram.org/bot{settings.BOT_TOKEN}/answerPreCheckoutQuery",
                     json={"pre_checkout_query_id": query_id, "ok": True}
                 )
 
