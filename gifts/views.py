@@ -244,3 +244,4 @@ class TelegramPaymentWebhook(APIView):
         except Exception as e:
             logger.exception(f"[TPW] Ошибка: {e}")
             return Response({"detail": str(e)}, status=500)
+            
