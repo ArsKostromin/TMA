@@ -192,7 +192,7 @@ class TelegramPaymentWebhook(APIView):
                 payment = msg["successful_payment"]
 
                 payload_raw = payment.get("invoice_payload")
-                amount_raw = payment.get("total_amount")  # XTR × 1000
+                amount_raw = payment.get("total_amount")  
                 telegram_user = msg["from"]["id"]
 
                 logger.warning(
@@ -227,7 +227,7 @@ class TelegramPaymentWebhook(APIView):
                     return Response({"detail": "User not found"}, status=404)
 
                 # ----------- конверсия -----------
-                stars = int(amount_raw / 1000)  # XTR → Stars
+                stars = int(amount_raw) # XTR → Stars
 
                 # ----------- пополнение баланса -----------
                 user.add_stars(stars)
