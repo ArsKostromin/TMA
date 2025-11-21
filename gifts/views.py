@@ -140,9 +140,10 @@ class TelegramPaymentWebhook(APIView):
             "provider_payment_charge_id": "..."
         }
         """
-        logger.info(f"[TelegramPaymentWebhook] Получен webhook: {request.data}")
+        logger.warning(f"[TelegramPaymentWebhook] Получен webhook: {request.data}")
         
         try:
+            logger.info(request.data)
             invoice_payload = request.data.get("invoice_payload")
             if not invoice_payload:
                 logger.error("[TelegramPaymentWebhook] ❌ Отсутствует invoice_payload")
