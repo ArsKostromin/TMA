@@ -184,8 +184,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 #env
-BOT_TOKEN=os.getenv('BOT_TOKEN')
-
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+TELEGRAM_WEBHOOK_SECRET = os.getenv('TELEGRAM_WEBHOOK_SECRET')
 
 # JWT конфиг
 JWT_SECRET = os.getenv("JWT_SECRET")
