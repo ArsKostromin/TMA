@@ -176,7 +176,7 @@ class TelegramPaymentWebhook(APIView):
                 pcq = data["pre_checkout_query"]
                 query_id = pcq.get("id")
 
-                logger.info(f"[TPW] pre_checkout_query: {pcq}")
+                logger.warning(f"[TPW] pre_checkout_query: {pcq}")
 
                 requests.post(
                     f"https://api.telegram.org/bot{settings.BOT_TOKEN}/answerPreCheckoutQuery",
@@ -195,7 +195,7 @@ class TelegramPaymentWebhook(APIView):
                 amount_raw = payment.get("total_amount")  # XTR × 1000
                 telegram_user = msg["from"]["id"]
 
-                logger.info(
+                logger.warning(
                     f"[TPW] successful_payment payload={payload_raw}, amount={amount_raw}"
                 )
 
@@ -232,7 +232,7 @@ class TelegramPaymentWebhook(APIView):
                 # ----------- пополнение баланса -----------
                 user.add_stars(stars)
 
-                logger.info(f"[TPW] BALANCE +{stars}⭐ for user={user_id}")
+                logger.warning(f"[TPW] BALANCE +{stars}⭐ for user={user_id}")
 
                 return Response(
                     {"detail": f"Баланс пополнен на {stars}⭐"}, status=200
