@@ -147,10 +147,13 @@ class TelegramPaymentWebhook(APIView):
         # -------------------------------------------------
         # 1. Проверка IP Telegram
         # -------------------------------------------------
-        client_ip = request.META.get("REMOTE_ADDR")
+        real_ip = (
+            request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
+            or request.META.get("REMOTE_ADDR")
+        )
 
-        if not ip_is_telegram(client_ip):
-            logger.error(f"[TPW] INVALID IP {client_ip} — NOT TELEGRAM")
+        if not ip_is_telegram(real_ip):
+            logger.error(f"[TPW] INVALID IP {real_ip} — NOT TELEGRAM")
             return Response({"detail": "Forbidden"}, status=403)
 
         # -------------------------------------------------
