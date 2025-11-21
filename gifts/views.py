@@ -2,6 +2,7 @@
 import logging
 import json
 import requests
+import ipaddress
 
 from decimal import Decimal
 from django.conf import settings
@@ -120,87 +121,121 @@ class WithdrawalOfNFT(APIView):
         return Response(result, status=status.HTTP_200_OK)
 
 
+TELEGRAM_IP_RANGES = [
+    ipaddress.ip_network("149.154.160.0/20"),
+    ipaddress.ip_network("91.108.4.0/22"),
+]
+
+
+def ip_is_telegram(ip: str) -> bool:
+    try:
+        ip_addr = ipaddress.ip_address(ip)
+        return any(ip_addr in net for net in TELEGRAM_IP_RANGES)
+    except:
+        return False
+
+
+# ============================== #
+#  Webhook
+# ============================== #
+
 class TelegramPaymentWebhook(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
+
+        # -------------------------------------------------
+        # 1. Проверка IP Telegram
+        # -------------------------------------------------
+        client_ip = request.META.get("REMOTE_ADDR")
+
+        if not ip_is_telegram(client_ip):
+            logger.error(f"[TPW] INVALID IP {client_ip} — NOT TELEGRAM")
+            return Response({"detail": "Forbidden"}, status=403)
+
+        # -------------------------------------------------
+        # 2. Проверка Secret Token
+        # -------------------------------------------------
+        secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if secret != settings.TELEGRAM_WEBHOOK_SECRET:
+            logger.error("[TPW] INVALID SECRET TOKEN")
+            return Response({"detail": "Forbidden"}, status=403)
+
+        # -------------------------------------------------
+        # Основная логика
+        # -------------------------------------------------
         data = request.data
         logger.warning(f"[TPW] UPDATE: {data}")
 
         try:
-            # -----------------------------------------------------
-            # 1. pre_checkout_query → надо подтвердить Телеге
-            # -----------------------------------------------------
+            # ======================= pre_checkout_query ============================
             if "pre_checkout_query" in data:
                 pcq = data["pre_checkout_query"]
-
                 query_id = pcq.get("id")
-                payload_raw = pcq.get("invoice_payload")
 
-                logger.info(f"[TPW] pre_checkout_query payload={payload_raw}")
+                logger.info(f"[TPW] pre_checkout_query: {pcq}")
 
-                # Телеге говорим «yes, всё ок, можно платить»
                 requests.post(
                     f"https://api.telegram.org/bot{settings.BOT_TOKEN}/answerPreCheckoutQuery",
-                    json={"pre_checkout_query_id": query_id, "ok": True}
+                    json={"pre_checkout_query_id": query_id, "ok": True},
+                    timeout=5,
                 )
 
-                return Response({"detail": "pre_checkout_query confirmed"}, status=200)
+                return Response({"detail": "pre_checkout_query OK"}, status=200)
 
-            # -----------------------------------------------------
-            # 2. Успешная оплата Stars
-            # -----------------------------------------------------
+            # ======================= successful_payment ============================
             if "message" in data and "successful_payment" in data["message"]:
-                payment = data["message"]["successful_payment"]
+                msg = data["message"]
+                payment = msg["successful_payment"]
 
                 payload_raw = payment.get("invoice_payload")
-                amount_raw = payment.get("total_amount")  # XTR в тысячных
-                telegram_user = data["message"]["from"]["id"]
+                amount_raw = payment.get("total_amount")  # XTR × 1000
+                telegram_user = msg["from"]["id"]
 
-                if not payload_raw:
-                    return Response({"detail": "Нет invoice_payload"}, status=400)
+                logger.info(
+                    f"[TPW] successful_payment payload={payload_raw}, amount={amount_raw}"
+                )
 
-                logger.info(f"[TPW] successful_payment payload={payload_raw} amount={amount_raw}")
+                # ----------- разбор payload -----------
+                user_id = None
 
-                # payload может быть JSON, может быть просто строка
-                try:
-                    payload = json.loads(payload_raw)
-                except:
-                    payload = payload_raw
+                if payload_raw:
+                    try:
+                        payload = json.loads(payload_raw)
+                        if isinstance(payload, dict):
+                            user_id = (
+                                payload.get("payload", {}).get("user_id")
+                                or payload.get("user_id")
+                            )
+                    except Exception:
+                        if isinstance(payload_raw, str) and "_" in payload_raw:
+                            maybe_id = payload_raw.split("_")[-1]
+                            if maybe_id.isdigit():
+                                user_id = int(maybe_id)
 
-                # -----------------------------------------------------
-                # Извлекаем user_id
-                # -----------------------------------------------------
-                if isinstance(payload, dict):
-                    user_id = payload.get("payload", {}).get("user_id") or payload.get("user_id")
-                elif isinstance(payload, str) and payload.startswith("topup_"):
-                    user_id = int(payload.split("_")[1])
-                else:
-                    user_id = telegram_user  # fallback
+                if not user_id:
+                    user_id = telegram_user
 
-                # -----------------------------------------------------
-                # 3. Находим юзера
-                # -----------------------------------------------------
+                # ----------- ищем юзера -----------
                 try:
                     user = User.objects.get(telegram_id=user_id)
                 except User.DoesNotExist:
-                    logger.error(f"[TPW] User {user_id} not found")
+                    logger.error(f"[TPW] user {user_id} not found")
                     return Response({"detail": "User not found"}, status=404)
 
-                # -----------------------------------------------------
-                # 4. Stars → total_amount приходит в тысячных
-                # -----------------------------------------------------
-                stars = int(amount_raw / 1000)
+                # ----------- конверсия -----------
+                stars = int(amount_raw / 1000)  # XTR → Stars
 
+                # ----------- пополнение баланса -----------
                 user.add_stars(stars)
 
-                logger.info(f"[TPW] balance +{stars}⭐ user={user_id}")
+                logger.info(f"[TPW] BALANCE +{stars}⭐ for user={user_id}")
 
-                return Response({"detail": "Баланс пополнен"}, status=200)
+                return Response(
+                    {"detail": f"Баланс пополнен на {stars}⭐"}, status=200
+                )
 
-            # -----------------------------------------------------
-            # 5. Непонятный объект
-            # -----------------------------------------------------
+            # ======================= неизвестное ============================
             return Response({"detail": "Unknown update"}, status=200)
 
         except Exception as e:
