@@ -1,5 +1,10 @@
 # gifts/views.py
 import logging
+import json
+import requests
+
+from decimal import Decimal
+from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -12,6 +17,7 @@ from .services.withdrawal import GiftWithdrawalService
 from .services.withdrawal_request import GiftWithdrawalRequestService
 from .services.userbot_client import send_test_request_to_userbot
 from .utils.telegram_payments import create_stars_invoice
+from user.models import User
 
 
 logger = logging.getLogger(__name__)
@@ -115,89 +121,88 @@ class WithdrawalOfNFT(APIView):
 
 
 class TelegramPaymentWebhook(APIView):
-    """
-    Webhook для обработки успешных платежей Telegram Stars.
-    Вызывается Telegram при успешной оплате инвойса.
-    """
-    permission_classes = [AllowAny]  # Telegram webhook не требует аутентификации
+    permission_classes = [AllowAny]
 
-    @extend_schema(
-        summary="Webhook для успешных платежей Telegram Stars",
-        description="Обрабатывает уведомления об успешной оплате инвойсов и выполняет вывод подарков.",
-        responses={
-            200: OpenApiResponse(description="Платеж обработан успешно"),
-            400: OpenApiResponse(description="Ошибка данных платежа"),
-            500: OpenApiResponse(description="Ошибка обработки платежа"),
-        },
-    )
     def post(self, request, *args, **kwargs):
-        """
-        Обрабатывает webhook от Telegram при успешной оплате.
-        Ожидает данные в формате:
-        {
-            "invoice_payload": "withdraw_gift_123",
-            "telegram_payment_charge_id": "...",
-            "provider_payment_charge_id": "..."
-        }
-        """
-        logger.warning(f"[TelegramPaymentWebhook] Получен webhook: {request.data}")
-        
+        data = request.data
+        logger.warning(f"[TPW] UPDATE: {data}")
+
         try:
-            logger.info(request.data)
-            invoice_payload = request.data.get("invoice_payload")
-            if not invoice_payload:
-                logger.error("[TelegramPaymentWebhook] ❌ Отсутствует invoice_payload")
-                return Response(
-                    {"detail": "Отсутствует invoice_payload"},
-                    status=status.HTTP_400_BAD_REQUEST
+            # -----------------------------------------------------
+            # 1. pre_checkout_query → надо подтвердить Телеге
+            # -----------------------------------------------------
+            if "pre_checkout_query" in data:
+                pcq = data["pre_checkout_query"]
+
+                query_id = pcq.get("id")
+                payload_raw = pcq.get("invoice_payload")
+
+                logger.info(f"[TPW] pre_checkout_query payload={payload_raw}")
+
+                # Телеге говорим «yes, всё ок, можно платить»
+                requests.post(
+                    f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/answerPreCheckoutQuery",
+                    json={"pre_checkout_query_id": query_id, "ok": True}
                 )
-            
-            # Проверяем тип платежа
-            if invoice_payload.startswith("withdraw_gift_"):
-                # Обрабатываем вывод подарка
-                success = GiftWithdrawalRequestService.process_successful_payment(invoice_payload)
-                
-                if success:
-                    logger.info(f"[TelegramPaymentWebhook] ✅ Платеж за вывод подарка обработан успешно: {invoice_payload}")
-                    return Response(
-                        {"detail": "Платеж обработан успешно"},
-                        status=status.HTTP_200_OK
-                    )
+
+                return Response({"detail": "pre_checkout_query confirmed"}, status=200)
+
+            # -----------------------------------------------------
+            # 2. Успешная оплата Stars
+            # -----------------------------------------------------
+            if "message" in data and "successful_payment" in data["message"]:
+                payment = data["message"]["successful_payment"]
+
+                payload_raw = payment.get("invoice_payload")
+                amount_raw = payment.get("total_amount")  # XTR в тысячных
+                telegram_user = data["message"]["from"]["id"]
+
+                if not payload_raw:
+                    return Response({"detail": "Нет invoice_payload"}, status=400)
+
+                logger.info(f"[TPW] successful_payment payload={payload_raw} amount={amount_raw}")
+
+                # payload может быть JSON, может быть просто строка
+                try:
+                    payload = json.loads(payload_raw)
+                except:
+                    payload = payload_raw
+
+                # -----------------------------------------------------
+                # Извлекаем user_id
+                # -----------------------------------------------------
+                if isinstance(payload, dict):
+                    user_id = payload.get("payload", {}).get("user_id") or payload.get("user_id")
+                elif isinstance(payload, str) and payload.startswith("topup_"):
+                    user_id = int(payload.split("_")[1])
                 else:
-                    logger.error(f"[TelegramPaymentWebhook] ❌ Ошибка обработки платежа за вывод: {invoice_payload}")
-                    return Response(
-                        {"detail": "Ошибка обработки платежа"},
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                    )
-            
-            elif invoice_payload.startswith("spin_game_"):
-                # Обрабатываем оплату за спин игру
-                from games.services.spin_payment import SpinPaymentService
-                success = SpinPaymentService.process_successful_payment(invoice_payload)
-                
-                if success:
-                    logger.info(f"[TelegramPaymentWebhook] ✅ Платеж за спин игру обработан успешно: {invoice_payload}")
-                    return Response(
-                        {"detail": "Платеж обработан успешно, игра запущена"},
-                        status=status.HTTP_200_OK
-                    )
-                else:
-                    logger.error(f"[TelegramPaymentWebhook] ❌ Ошибка обработки платежа за спин: {invoice_payload}")
-                    return Response(
-                        {"detail": "Ошибка обработки платежа"},
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                    )
-            
-            else:
-                logger.warning(f"[TelegramPaymentWebhook] ⚠️ Неизвестный payload: {invoice_payload}")
-                return Response(
-                    {"detail": "Неизвестный тип платежа"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-                
+                    user_id = telegram_user  # fallback
+
+                # -----------------------------------------------------
+                # 3. Находим юзера
+                # -----------------------------------------------------
+                try:
+                    user = User.objects.get(telegram_id=user_id)
+                except User.DoesNotExist:
+                    logger.error(f"[TPW] User {user_id} not found")
+                    return Response({"detail": "User not found"}, status=404)
+
+                # -----------------------------------------------------
+                # 4. Stars → total_amount приходит в тысячных
+                # -----------------------------------------------------
+                stars = int(amount_raw / 1000)
+
+                user.add_stars(stars)
+
+                logger.info(f"[TPW] balance +{stars}⭐ user={user_id}")
+
+                return Response({"detail": "Баланс пополнен"}, status=200)
+
+            # -----------------------------------------------------
+            # 5. Непонятный объект
+            # -----------------------------------------------------
+            return Response({"detail": "Unknown update"}, status=200)
+
         except Exception as e:
-            logger.exception(f"[TelegramPaymentWebhook] ❌ Ошибка: {e}")
-            return Response(
-                {"detail": f"Ошибка обработки webhook: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            logger.exception(f"[TPW] Ошибка: {e}")
+            return Response({"detail": str(e)}, status=500)
