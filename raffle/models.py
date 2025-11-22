@@ -4,7 +4,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from decimal import Decimal
-from raffle.tasks import finalize_raffle
+
 
 class DailyRaffle(models.Model):
     """
@@ -82,14 +82,6 @@ class DailyRaffle(models.Model):
 
     def __str__(self):
         return f"Розыгрыш {self.id} — {self.get_status_display()}"
-
-    def save(self, *args, **kwargs):
-        is_new = self.pk is None
-        super().save(*args, **kwargs)
-
-        if is_new and self.status == "active":
-            # Ставим таску сразу при создании
-            finalize_raffle.apply_async(args=[self.id], eta=self.ends_at)
 
 
 class DailyRaffleParticipant(models.Model):
