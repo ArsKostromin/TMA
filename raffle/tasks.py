@@ -11,10 +11,39 @@ from gifts.models import Gift
 logger = logging.getLogger(__name__)
 
 
+@shared_task(name="raffle.schedule_raffle_task")
+def schedule_raffle_task(raffle_id: int):
+    """
+    Ставит таску finalize_raffle на момент окончания.
+    Используется сигналом post_save.
+    """
+    raffle = DailyRaffle.objects.filter(id=raffle_id).first()
+
+    if not raffle:
+        logger.warning("[RaffleScheduler] raffle %s not found", raffle_id)
+        return
+
+    if raffle.status != "active":
+        logger.info("[RaffleScheduler] raffle %s is not active -> skip", raffle_id)
+        return
+
+    if not raffle.ends_at:
+        logger.warning("[RaffleScheduler] raffle %s has no ends_at", raffle_id)
+        return
+
+    finalize_raffle.apply_async(
+        args=[raffle_id],
+        eta=raffle.ends_at
+    )
+
+    logger.info("[RaffleScheduler] task scheduled for raffle %s at %s",
+                raffle_id, raffle.ends_at)
+
+
 @shared_task(name="raffle.finalize_raffle")
 def finalize_raffle(raffle_id: int):
     """
-    Завершает розыгрыш — вызывается по ETA моменту окончания.
+    Завершает розыгрыш и создаёт следующий.
     """
     logger.info("[Raffle] finalize_raffle triggered for raffle %s", raffle_id)
 
@@ -53,9 +82,9 @@ def finalize_raffle(raffle_id: int):
 
         if not next_prize and current_prize:
             next_prize = available.filter(symbol=current_prize.symbol) \
-                                  .exclude(pk=current_prize.pk) \
-                                  .order_by("id") \
-                                  .first()
+                .exclude(pk=current_prize.pk) \
+                .order_by("id") \
+                .first()
 
         if not next_prize:
             logger.warning("[Raffle] no next gift available, stopping chain")
