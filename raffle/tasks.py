@@ -2,131 +2,82 @@ import logging
 from datetime import timedelta
 
 from celery import shared_task
-from django.db import transaction
 from django.utils import timezone
+from django.db import transaction
 
 from raffle.models import DailyRaffle
 from gifts.models import Gift
 
-
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name="raffle.tasks.process_daily_raffle")
-def process_daily_raffle() -> str:
-    """Ежедневное подведение итогов розыгрыша.
-
-    1) Находит активный розыгрыш
-    2) Выбирает победителя (если есть участники) и выдаёт приз
-    3) Закрывает розыгрыш (status = finished)
-    4) Создаёт новый розыгрыш с доступным призом и активирует его
-
-    Возвращает текстовый результат для логов/мониторинга.
+@shared_task(name="raffle.finalize_raffle")
+def finalize_raffle(raffle_id: int):
     """
-    logger.info("[Raffle] Запуск process_daily_raffle")
+    Завершает розыгрыш — вызывается по ETA моменту окончания.
+    """
+    logger.info("[Raffle] finalize_raffle triggered for raffle %s", raffle_id)
 
     with transaction.atomic():
         raffle = (
             DailyRaffle.objects
             .select_related("prize")
-            .filter(status="active")
-            .order_by("-started_at")
+            .filter(id=raffle_id, status="active")
             .first()
         )
 
-        if raffle is None:
-            logger.info("[Raffle] Нет активного розыгрыша — ничего не делаем")
-            return "Нет активного розыгрыша"
+        if not raffle:
+            logger.warning("[Raffle] raffle %s not found or already finished", raffle_id)
+            return "not active"
 
-        # Выбор победителя (метод сам закроет розыгрыш, если участников нет)
+        # ---------- Победитель ----------
         winner = raffle.pick_winner()
 
-        # Выдаём приз победителю, если он есть и приз задан
         if winner and raffle.prize:
-            prize: Gift = raffle.prize
+            prize = raffle.prize
             prize.user = winner
             prize.save(update_fields=["user"])
-            logger.info("[Raffle] Приз %s передан пользователю %s", prize.id, winner.id)
-        else:
-            if not winner:
-                logger.info("[Raffle] Участников не было — победитель отсутствует")
-            if not raffle.prize:
-                logger.info("[Raffle] Приз для розыгрыша не задан")
+            logger.info("[Raffle] prize %s issued to %s", prize.id, winner.id)
 
-        # Закрываем текущий розыгрыш, если метод pick_winner не сделал этого
-        if raffle.status != "finished":
-            raffle.status = "finished"
-            raffle.save(update_fields=["status", "updated_at"])
+        raffle.status = "finished"
+        raffle.save(update_fields=["status", "updated_at"])
 
-        # Подбираем приз для следующего розыгрыша
-        next_prize: Gift | None = None
+        # ---------- Подбор следующего подарка ----------
         current_prize = raffle.prize
-        
-        # Логируем информацию о текущем призе
-        if current_prize:
-            logger.info("[Raffle] Текущий приз: ID=%s, symbol=%s", current_prize.id, current_prize.symbol)
-        else:
-            logger.info("[Raffle] Текущий приз не задан")
-        
-        # Ищем любой свободный подарок (не только с тем же символом)
-        available_gifts_count = Gift.objects.filter(user__isnull=True).count()
-        logger.info("[Raffle] Всего доступных подарков: %s", available_gifts_count)
-        
-        next_prize = (
-            Gift.objects
-            .filter(user__isnull=True)
-            .exclude(pk=current_prize.pk if current_prize else 0)
-            .order_by("id")
-            .first()
-        )
-        
-        if next_prize:
-            logger.info("[Raffle] Найден подарок для следующего розыгрыша: ID=%s, symbol=%s", next_prize.id, next_prize.symbol)
-        else:
-            logger.info("[Raffle] Не найден подарок с другим символом, пробуем найти с тем же символом")
-            
-            # Если не нашли, попробуем найти с тем же символом (fallback)
-            if current_prize and current_prize.symbol:
-                next_prize = (
-                    Gift.objects
-                    .filter(symbol=current_prize.symbol, user__isnull=True)
-                    .exclude(pk=current_prize.pk)
-                    .order_by("id")
-                    .first()
-                )
-                
-                if next_prize:
-                    logger.info("[Raffle] Найден подарок с тем же символом: ID=%s, symbol=%s", next_prize.id, next_prize.symbol)
-                else:
-                    logger.info("[Raffle] Не найдено подарков с символом %s", current_prize.symbol)
+
+        available = Gift.objects.filter(user__isnull=True)
+
+        next_prize = available.exclude(
+            pk=current_prize.pk if current_prize else None
+        ).order_by("id").first()
+
+        if not next_prize and current_prize:
+            next_prize = available.filter(symbol=current_prize.symbol) \
+                                  .exclude(pk=current_prize.pk) \
+                                  .order_by("id") \
+                                  .first()
 
         if not next_prize:
-            logger.info("[Raffle] Нет доступного подарка для следующего розыгрыша — новый не создан")
-            result = (
-                f"Розыгрыш {raffle.id} завершён, "
-                f"победитель: {getattr(winner, 'id', None) or 'нет'}, "
-                f"новый розыгрыш не создан (нет подарков)"
-            )
-            logger.info("[Raffle] %s", result)
-            return result
+            logger.warning("[Raffle] no next gift available, stopping chain")
+            return "finished, no new raffle created"
 
-        # Создаём новый розыгрыш на следующие 24 часа
+        # ---------- Создаём новый ----------
         started_at = timezone.now()
         ends_at = started_at + timedelta(hours=24)
+
         new_raffle = DailyRaffle.objects.create(
             prize=next_prize,
             status="active",
             started_at=started_at,
-            ends_at=ends_at,
+            ends_at=ends_at
         )
-        logger.info("[Raffle] Создан новый розыгрыш %s с призом %s", new_raffle.id, next_prize.id)
 
-        result = (
-            f"Розыгрыш {raffle.id} завершён, "
-            f"победитель: {getattr(winner, 'id', None) or 'нет'}, "
-            f"создан новый розыгрыш {new_raffle.id}"
+        logger.info("[Raffle] new raffle %s created", new_raffle.id)
+
+        # ---------- Ставим следующую таску ----------
+        finalize_raffle.apply_async(
+            args=[new_raffle.id],
+            eta=ends_at
         )
-        logger.info("[Raffle] %s", result)
-        return result
 
-
+        return f"finished raffle {raffle_id}, created new {new_raffle.id}"
