@@ -54,15 +54,34 @@ class GiftWithdrawalRequestService:
         # Получаем ton_contract_address для поиска подарка в инвентаре userbot
         # Поиск по slug работает даже для выигранных подарков, где msg_id может отсутствовать
         # Преобразуем в строку, так как может быть числом в БД
-        ton_contract_address = str(gift.ton_contract_address) if gift.ton_contract_address else None
+        try:
+            ton_contract_address_raw = gift.ton_contract_address
+            ton_contract_address = str(ton_contract_address_raw) if ton_contract_address_raw else None
+            logger.info(f"[GiftWithdrawalRequestService] 📋 Данные подарка: id={gift_id}, name={gift.name}, ton_contract_address={ton_contract_address} (тип в БД: {type(ton_contract_address_raw).__name__})")
+        except Exception as e:
+            logger.error(f"[GiftWithdrawalRequestService] ❌ Ошибка при получении ton_contract_address: {e}")
+            return {
+                "status": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "detail": f"Ошибка при получении данных подарка: {str(e)}"
+            }
+        
+        if not ton_contract_address:
+            logger.error(f"[GiftWithdrawalRequestService] ❌ У подарка ID={gift_id} отсутствует ton_contract_address")
+            return {
+                "status": status.HTTP_400_BAD_REQUEST,
+                "detail": "У подарка отсутствует ton_contract_address, невозможно найти его в инвентаре."
+            }
         
         # Отправляем подарок реально через userbot
         # Комиссия будет списана реальными звёздами с аккаунта userbot в Telegram
+        logger.info(f"[GiftWithdrawalRequestService] 🚀 Отправка запроса в userbot: gift_id={gift_id}, recipient={recipient_telegram_id}, ton_contract_address={ton_contract_address}")
         send_result = send_gift_via_userbot(
             gift_id=gift_id,
             recipient_telegram_id=recipient_telegram_id,
             ton_contract_address=ton_contract_address
         )
+        
+        logger.info(f"[GiftWithdrawalRequestService] 📥 Ответ от userbot: {send_result}")
 
         if not send_result.get("ok"):
             logger.error(f"[GiftWithdrawalRequestService] ❌ Не удалось отправить подарок: {send_result.get('error')}")

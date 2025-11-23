@@ -71,11 +71,14 @@ def send_gift_via_userbot(gift_id: int, recipient_telegram_id: int, ton_contract
         "recipient_telegram_id": recipient_telegram_id,
     }
     if ton_contract_address:
-        payload["ton_contract_address"] = ton_contract_address
+        # Убеждаемся, что передаем строку
+        payload["ton_contract_address"] = str(ton_contract_address) if ton_contract_address else None
+        logger.debug(f"📝 Добавлен ton_contract_address в payload: {payload['ton_contract_address']} (тип: {type(payload['ton_contract_address']).__name__})")
     if msg_id:
         payload["msg_id"] = msg_id
     
-    logger.info(f"🎁 Запрос на отправку подарка через userbot: {url} | {payload}")
+    logger.info(f"🎁 Запрос на отправку подарка через userbot: {url}")
+    logger.debug(f"📦 Payload: {payload}")
     try:
         r = requests.post(url, json=payload, timeout=30)
         r.raise_for_status()
