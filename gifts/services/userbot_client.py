@@ -51,7 +51,7 @@ def create_star_invoice_via_userbot(chat_id: int, gift_id: int, amount: int = 25
         return {"ok": False, "error": str(e), "details": err}
 
 
-def send_gift_via_userbot(gift_id: int, recipient_telegram_id: int, msg_id=None) -> dict:
+def send_gift_via_userbot(gift_id: int, recipient_telegram_id: int, ton_contract_address: str = None, msg_id=None) -> dict:
     """
     Отправить подарок пользователю через сервис userbot.
     Выполняет реальную отправку подарка через Telegram.
@@ -59,7 +59,8 @@ def send_gift_via_userbot(gift_id: int, recipient_telegram_id: int, msg_id=None)
     Args:
         gift_id: ID подарка в Django БД
         recipient_telegram_id: Telegram ID получателя подарка
-        msg_id: ID сообщения с подарком (опционально, если не указан - будет найден автоматически)
+        ton_contract_address: Уникальный slug подарка (используется для поиска в инвентаре)
+        msg_id: ID сообщения с подарком (опционально, если не указан - будет найден по ton_contract_address)
     
     Returns:
         dict с результатом отправки: {"ok": bool, "message": str, "data": dict}
@@ -69,6 +70,8 @@ def send_gift_via_userbot(gift_id: int, recipient_telegram_id: int, msg_id=None)
         "gift_id": gift_id,
         "recipient_telegram_id": recipient_telegram_id,
     }
+    if ton_contract_address:
+        payload["ton_contract_address"] = ton_contract_address
     if msg_id:
         payload["msg_id"] = msg_id
     

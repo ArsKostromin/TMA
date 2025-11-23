@@ -121,6 +121,7 @@ class Gift(models.Model):
     )
 
 
+
     # --- Служебные / Очищенные ---
     is_onchain = models.BooleanField(
         default=False,

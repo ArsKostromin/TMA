@@ -82,13 +82,6 @@ class GiftAddSerializer(serializers.ModelSerializer):
             "backdrop_original_details",
             "rarity_level",
             "backdrop_name",
-
-            # 👇 добавляем сюда нужные поля для Telethon
-            "peer_id",
-            "msg_id",
-            "access_hash",
-            "sender_id",
-            "chat_name",
         ]
 
     def validate_price_ton(self, value):

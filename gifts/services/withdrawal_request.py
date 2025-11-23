@@ -51,11 +51,16 @@ class GiftWithdrawalRequestService:
                 "detail": "У аккаунта не указан Telegram ID (telegram_id)."
             }
 
+        # Получаем ton_contract_address для поиска подарка в инвентаре userbot
+        # Поиск по slug работает даже для выигранных подарков, где msg_id может отсутствовать
+        ton_contract_address = gift.ton_contract_address
+        
         # Отправляем подарок реально через userbot
         # Комиссия будет списана реальными звёздами с аккаунта userbot в Telegram
         send_result = send_gift_via_userbot(
             gift_id=gift_id,
-            recipient_telegram_id=recipient_telegram_id
+            recipient_telegram_id=recipient_telegram_id,
+            ton_contract_address=ton_contract_address
         )
 
         if not send_result.get("ok"):
