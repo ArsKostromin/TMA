@@ -49,3 +49,45 @@ def create_star_invoice_via_userbot(chat_id: int, gift_id: int, amount: int = 25
             err = str(e)
         logger.error(f"❌ Ошибка при создании инвойса через userbot: {e} | {err}")
         return {"ok": False, "error": str(e), "details": err}
+
+
+def send_gift_via_userbot(gift_id: int, recipient_telegram_id: int, msg_id=None) -> dict:
+    """
+    Отправить подарок пользователю через сервис userbot.
+    Выполняет реальную отправку подарка через Telegram.
+    
+    Args:
+        gift_id: ID подарка в Django БД
+        recipient_telegram_id: Telegram ID получателя подарка
+        msg_id: ID сообщения с подарком (опционально, если не указан - будет найден автоматически)
+    
+    Returns:
+        dict с результатом отправки: {"ok": bool, "message": str, "data": dict}
+    """
+    url = f"{BASE_URL}/send_gift"
+    payload = {
+        "gift_id": gift_id,
+        "recipient_telegram_id": recipient_telegram_id,
+    }
+    if msg_id:
+        payload["msg_id"] = msg_id
+    
+    logger.info(f"🎁 Запрос на отправку подарка через userbot: {url} | {payload}")
+    try:
+        r = requests.post(url, json=payload, timeout=30)
+        r.raise_for_status()
+        data = r.json()
+        logger.info(f"✅ Ответ от userbot (send_gift): {data}")
+        return data
+    except requests.exceptions.HTTPError as e:
+        # Ошибка HTTP (4xx, 5xx)
+        try:
+            err = e.response.json() if e.response else {}
+        except Exception:
+            err = {"error": str(e), "status_code": e.response.status_code if e.response else None}
+        logger.error(f"❌ HTTP ошибка при отправке подарка через userbot: {e} | {err}")
+        return {"ok": False, "error": str(e), "details": err}
+    except requests.exceptions.RequestException as e:
+        # Сетевая ошибка или другая ошибка запроса
+        logger.error(f"❌ Ошибка при отправке подарка через userbot: {e}")
+        return {"ok": False, "error": str(e), "details": {"error": str(e)}}

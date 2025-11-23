@@ -83,21 +83,22 @@ class UserAddsGift(APIView):
 
 class WithdrawalOfNFT(APIView):
     """
-    Эндпоинт для создания запроса на вывод NFT-подарка.
-    Создает запрос на вывод и отправляет инвойс на оплату 25 звёзд.
+    Эндпоинт для вывода NFT-подарка.
+    Отправляет подарок реально через Telegram. Комиссия оплачивается реальными звёздами 
+    с аккаунта userbot в Telegram (не из БД пользователя).
     """
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-        summary="Создание запроса на вывод NFT подарка",
-        description="Создает запрос на вывод NFT и отправляет инвойс на оплату 25 звёзд. Подарок будет выведен только после успешной оплаты.",
+        summary="Вывод NFT подарка",
+        description="Отправляет подарок реально через Telegram. Комиссия оплачивается реальными звёздами с аккаунта userbot. Подарок удаляется из БД после успешной отправки.",
         request=GiftWithdrawSerializer,
         responses={
-            200: OpenApiResponse(description="Запрос создан, инвойс отправлен"),
+            200: OpenApiResponse(description="Подарок успешно отправлен"),
             400: OpenApiResponse(description="Ошибка данных"),
             403: OpenApiResponse(description="Подарок не принадлежит пользователю"),
             404: OpenApiResponse(description="Подарок не найден"),
-            500: OpenApiResponse(description="Ошибка создания инвойса"),
+            500: OpenApiResponse(description="Ошибка при отправке подарка"),
         },
     )
     def post(self, request, *args, **kwargs):
