@@ -53,7 +53,8 @@ class GiftWithdrawalRequestService:
 
         # Получаем ton_contract_address для поиска подарка в инвентаре userbot
         # Поиск по slug работает даже для выигранных подарков, где msg_id может отсутствовать
-        ton_contract_address = gift.ton_contract_address
+        # Преобразуем в строку, так как может быть числом в БД
+        ton_contract_address = str(gift.ton_contract_address) if gift.ton_contract_address else None
         
         # Отправляем подарок реально через userbot
         # Комиссия будет списана реальными звёздами с аккаунта userbot в Telegram
