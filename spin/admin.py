@@ -29,10 +29,7 @@ class SpinGameAdmin(admin.ModelAdmin):
         }),
     )
 
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "gift_won":
-            kwargs["queryset"] = Gift.objects.filter(user__isnull=True)
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 
 @admin.register(SpinWheelSector)
@@ -41,3 +38,8 @@ class SpinWheelSectorAdmin(admin.ModelAdmin):
     list_editable = ("gift", "probability")
     search_fields = ("gift__title",)
     ordering = ("index",)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "gift_won":
+            kwargs["queryset"] = Gift.objects.filter(user__isnull=True)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
