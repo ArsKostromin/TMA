@@ -1,6 +1,7 @@
 # raffles/admin.py
 from django.contrib import admin
 from .models import DailyRaffle, DailyRaffleParticipant
+from gifts.models import Gift
 
 
 class DailyRaffleParticipantInline(admin.TabularInline):
@@ -35,6 +36,11 @@ class DailyRaffleAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
 
     inlines = [DailyRaffleParticipantInline]
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "gift_won":
+            kwargs["queryset"] = Gift.objects.filter(user__isnull=True)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(DailyRaffleParticipant)
