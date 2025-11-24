@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import SpinGame, SpinWheelSector
+from gifts.models import Gift
 
 
 @admin.register(SpinGame)
@@ -27,6 +28,11 @@ class SpinGameAdmin(admin.ModelAdmin):
             "fields": ("gift_won", "result_sector", "played_at")
         }),
     )
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "gift_won":
+            kwargs["queryset"] = Gift.objects.filter(user__isnull=True)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(SpinWheelSector)
