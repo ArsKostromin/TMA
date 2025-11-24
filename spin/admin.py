@@ -40,6 +40,6 @@ class SpinWheelSectorAdmin(admin.ModelAdmin):
     ordering = ("index",)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "gift_won":
+        if db_field.name == "gift":
             kwargs["queryset"] = Gift.objects.filter(user__isnull=True)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
